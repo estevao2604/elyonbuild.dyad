@@ -148,7 +148,7 @@ const MemberArea = () => {
       // Carregar projeto
       const { data: projectData, error: projectError } = await sb
         .from("projects")
-        .select("*, project_branding(*)")
+        .select("*")
         .eq("id", projectId)
         .single();
 
@@ -160,14 +160,26 @@ const MemberArea = () => {
 
       setProject(projectData);
 
-      // Carregar branding
-      const { data: brandingData } = await sb
+      // Carregar branding - CORRIGIDO: Buscar diretamente da tabela project_branding
+      const { data: brandingData, error: brandingError } = await sb
         .from("project_branding")
         .select("*")
         .eq("project_id", projectId)
         .maybeSingle();
 
-      setBranding(brandingData);
+      if (brandingError) {
+        console.error("Error loading branding:", brandingError);
+      } else {
+        setBranding(brandingData);
+        
+        // Aplicar configurações de branding imediatamente
+        if (brandingData) {
+          if (brandingData.dark_mode) {
+            setDarkMode(true);
+            document.documentElement.classList.add("dark");
+          }
+        }
+      }
 
       // Atualizar último login
       await sb

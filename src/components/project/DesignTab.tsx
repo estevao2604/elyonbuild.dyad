@@ -133,7 +133,11 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
 
       const { error } = await sb
         .from("project_branding")
-        .update({ ...colors, dark_mode: darkMode })
+        .update({ 
+          ...colors, 
+          dark_mode: darkMode,
+          updated_at: new Date().toISOString()
+        })
         .eq("project_id", projectId);
 
       if (error) throw error;
@@ -144,6 +148,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
         .update({
           primary_color: colors.primary_color,
           secondary_color: colors.secondary_color,
+          updated_at: new Date().toISOString()
         })
         .eq("id", projectId);
 
@@ -172,7 +177,11 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
 
       const { error } = await sb
         .from("project_branding")
-        .update({ ...defaultColors, dark_mode: false })
+        .update({ 
+          ...defaultColors, 
+          dark_mode: false,
+          updated_at: new Date().toISOString()
+        })
         .eq("project_id", projectId);
 
       if (error) throw error;
