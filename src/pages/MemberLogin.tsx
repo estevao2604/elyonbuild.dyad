@@ -176,35 +176,34 @@ const MemberLogin = () => {
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor }}>
         <Card className="max-w-md mx-4">
           <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-bold mb-2">Erro</h2>
-            <p className="text-muted-foreground mb-4">{error}</p>
-            {error.includes("Projeto não encontrado") && (
+            <h2 className="text-xl font-bold mb-2">Erro: Projeto Não Encontrado</h2>
+            <p className="text-muted-foreground mb-4">
+              O ID do projeto fornecido na URL (`{projectId}`) não corresponde a nenhum projeto existente.
+              Por favor, verifique se o ID está correto ou se o projeto foi excluído.
+            </p>
+            {allProjects.length > 0 && (
               <div className="text-xs text-muted-foreground mb-4">
-                <p>ID do projeto: {projectId}</p>
-                {allProjects.length > 0 && (
-                  <div className="mt-2">
-                    <p>Projetos disponíveis:</p>
-                    <ul className="text-left mt-1">
-                      {allProjects.slice(0, 5).map(p => (
+                <p>Projetos disponíveis (primeiros 5):</p>
+                <ul className="text-left mt-1 list-disc list-inside">
+                  {allProjects.slice(0, 5).map(p => (
                         <li key={p.id} className="text-xs">
                           {p.name} (ID: {p.id})
                         </li>
                       ))}
-                    </ul>
-                  </div>
-                )}
+                </ul>
+                <p className="mt-2">Use um desses IDs na URL para acessar a área de membros.</p>
               </div>
             )}
             <div className="flex flex-col gap-2">
-              <Button onClick={() => navigate("/")} className="w-full">
-                Voltar para o início
+              <Button onClick={() => navigate("/dashboard")} className="w-full">
+                Ir para o Dashboard (para criar ou ver projetos)
               </Button>
               <Button 
-                onClick={() => navigate("/dashboard")} 
+                onClick={() => navigate("/")} 
                 variant="outline"
                 className="w-full"
               >
-                Ver meus projetos
+                Voltar para o Início
               </Button>
             </div>
           </CardContent>
