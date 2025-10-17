@@ -13,7 +13,6 @@ interface Branding {
   container_color: string | null;
   button_color: string | null;
   text_color: string | null;
-  dark_mode: boolean | null;
   header_background_color: string | null;
   header_text_color: string | null;
   card_text_color: string | null;
@@ -29,7 +28,6 @@ const defaultBranding: Branding = {
   container_color: "#1A1A1A",
   button_color: "#D4AF37",
   text_color: "#F5F5F5",
-  dark_mode: false,
   header_background_color: "#1E293B",
   header_text_color: "#F1F5F9",
   card_text_color: "#F1F5F9",
@@ -54,11 +52,8 @@ export function useProjectBranding(projectId: string) {
     root.style.setProperty('--member-card-text-color', currentBranding.card_text_color || defaultBranding.card_text_color);
     root.style.setProperty('--member-muted-text-color', currentBranding.muted_text_color || defaultBranding.muted_text_color);
 
-    if (currentBranding.dark_mode) {
-      root.classList.add("member-dark");
-    } else {
-      root.classList.remove("member-dark");
-    }
+    // Remove dark mode class if it was previously applied
+    root.classList.remove("member-dark");
   }, []);
 
   const loadBranding = useCallback(async () => {

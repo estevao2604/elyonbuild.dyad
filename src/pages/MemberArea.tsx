@@ -8,7 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LogOut, BookOpen, Video, FileText, Image as ImageIcon, CheckCircle, User, Moon, Sun, ArrowRight } from "lucide-react";
+import { LogOut, BookOpen, Video, FileText, Image as ImageIcon, CheckCircle, User, ArrowRight } from "lucide-react";
 import MemberProfile from "@/components/member/MemberProfile";
 import LessonComments from "@/components/member/LessonComments";
 import { useProjectBranding } from "@/hooks/useProjectBranding";
@@ -61,10 +61,10 @@ const MemberArea = () => {
     }
   }, [member]);
 
-  const toggleDarkMode = async () => {
-    if (!branding) return;
-    await saveBranding({ dark_mode: !branding.dark_mode });
-  };
+  // const toggleDarkMode = async () => { // Removed
+  //   if (!branding) return;
+  //   await saveBranding({ dark_mode: !branding.dark_mode });
+  // };
 
   const checkMemberSession = async () => {
     const session = sessionStorage.getItem("member_session");
@@ -316,19 +316,7 @@ const MemberArea = () => {
               </div>
 
               <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleDarkMode}
-                  className="rounded-full text-[var(--member-header-text-color)]"
-                >
-                  {branding?.dark_mode ? (
-                    <Sun className="h-5 w-5" />
-                  ) : (
-                    <Moon className="h-5 w-5" />
-                  )}
-                </Button>
-
+                {/* Removed Dark Mode Toggle */}
                 <button
                   onClick={() => setActiveTab("profile")}
                   className="flex items-center gap-2 hover:opacity-80 transition-smooth"

@@ -13,7 +13,7 @@ interface DesignTabProps {
 const DesignTab = ({ projectId }: DesignTabProps) => {
   const { branding, loading, saveBranding, defaultBranding } = useProjectBranding(projectId);
   const [localColors, setLocalColors] = useState(defaultBranding);
-  const [localDarkMode, setLocalDarkMode] = useState(false);
+  // const [localDarkMode, setLocalDarkMode] = useState(false); // Removed
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -32,19 +32,19 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
         muted_text_color: branding.muted_text_color || defaultBranding.muted_text_color,
         custom_logo_url: branding.custom_logo_url,
       });
-      setLocalDarkMode(branding.dark_mode || false);
+      // setLocalDarkMode(branding.dark_mode || false); // Removed
     }
   }, [branding, defaultBranding]);
 
   const handleSaveColors = async () => {
     setSaving(true);
-    await saveBranding({ ...localColors, dark_mode: localDarkMode });
+    await saveBranding({ ...localColors }); // Removed dark_mode
     setSaving(false);
   };
 
   const handleResetDesign = async () => {
     setSaving(true);
-    await saveBranding({ ...defaultBranding, custom_logo_url: null, dark_mode: false });
+    await saveBranding({ ...defaultBranding, custom_logo_url: null }); // Removed dark_mode
     setSaving(false);
   };
 
@@ -74,7 +74,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
           />
           <DesignPreviewCard
             localColors={localColors}
-            localDarkMode={localDarkMode}
+            localDarkMode={false} // Always false now
           />
         </div>
 
@@ -82,8 +82,8 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
           <ColorPickerSection
             localColors={localColors}
             setLocalColors={setLocalColors}
-            localDarkMode={localDarkMode}
-            setLocalDarkMode={setLocalDarkMode}
+            // localDarkMode={localDarkMode} // Removed
+            // setLocalDarkMode={setLocalDarkMode} // Removed
             defaultBranding={defaultBranding}
           />
 

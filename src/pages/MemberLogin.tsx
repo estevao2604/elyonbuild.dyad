@@ -191,7 +191,7 @@ const MemberLogin = () => {
 
   return (
     <div 
-      className={`min-h-screen flex items-center justify-center relative overflow-hidden ${branding?.dark_mode ? "member-dark" : ""}`}
+      className={`min-h-screen flex items-center justify-center relative overflow-hidden`} // Removed member-dark class
       style={{ backgroundColor: 'var(--member-background-color)' }}
     >
       {/* Background Pattern */}

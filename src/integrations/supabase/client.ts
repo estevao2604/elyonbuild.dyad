@@ -15,4 +15,4 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
-// Adicionado para forçar o reprocessamento do arquivo e atualização do cache de esquema. (Atualizado: 2024-07-31-v3)
+// Adicionado para forçar o reprocessamento do arquivo e atualização do cache de esquema. (Atualizado: 2024-07-31-v4)

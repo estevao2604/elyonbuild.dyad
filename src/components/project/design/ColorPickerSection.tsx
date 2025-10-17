@@ -5,12 +5,12 @@ import ColorInput from "./ColorInput";
 interface ColorPickerSectionProps {
   localColors: any; // Use a more specific type if available
   setLocalColors: (colors: any) => void;
-  localDarkMode: boolean;
-  setLocalDarkMode: (checked: boolean) => void;
+  // localDarkMode: boolean; // Removed
+  // setLocalDarkMode: (checked: boolean) => void; // Removed
   defaultBranding: any; // Use a more specific type if available
 }
 
-const ColorPickerSection = ({ localColors, setLocalColors, localDarkMode, setLocalDarkMode, defaultBranding }: ColorPickerSectionProps) => {
+const ColorPickerSection = ({ localColors, setLocalColors, defaultBranding }: ColorPickerSectionProps) => {
   return (
     <Card className="shadow-card border-border/50">
       <CardHeader>
@@ -119,27 +119,6 @@ const ColorPickerSection = ({ localColors, setLocalColors, localDarkMode, setLoc
             placeholder="#A0A0A0"
             description="Cor para textos menores e menos proeminentes"
           />
-        </div>
-
-        <div className="pt-4 border-t border-border space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="dark-mode">Modo Escuro</Label>
-              <p className="text-xs text-muted-foreground mt-1">
-                Ativar tema escuro na área de membros
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                id="dark-mode"
-                type="checkbox"
-                checked={localDarkMode}
-                onChange={(e) => setLocalDarkMode(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
         </div>
       </CardContent>
     </Card>

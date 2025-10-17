@@ -12,18 +12,3 @@
   --member-card-text-color: #F1F5F9;
   --member-muted-text-color: #A0A0A0;
 }
-
-/* Modo escuro para a área de membros, se ativado */
-.member-dark {
-  --member-background-color: 0 0% 4%;
-  --member-container-color: 0 0% 12%;
-  --member-text-color: 0 0% 96%;
-  --member-primary-color: 43 63% 53%;
-  --member-secondary-color: 187 100% 50%;
-  --member-accent-color: 43 63% 53%;
-  --member-button-color: 43 63% 53%;
-  --member-header-background-color: 0 0% 12%;
-  --member-header-text-color: 0 0% 96%;
-  --member-card-text-color: 0 0% 96%;
-  --member-muted-text-color: 0 0% 70%;
-}

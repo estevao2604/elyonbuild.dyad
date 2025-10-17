@@ -4,10 +4,10 @@ import { Palette, BookOpen, CheckCircle } from "lucide-react";
 
 interface DesignPreviewCardProps {
   localColors: any; // Use a more specific type if available
-  localDarkMode: boolean;
+  // localDarkMode: boolean; // Removed
 }
 
-const DesignPreviewCard = ({ localColors, localDarkMode }: DesignPreviewCardProps) => {
+const DesignPreviewCard = ({ localColors }: DesignPreviewCardProps) => {
   return (
     <Card className="shadow-card border-border/50">
       <CardHeader>
@@ -17,7 +17,7 @@ const DesignPreviewCard = ({ localColors, localDarkMode }: DesignPreviewCardProp
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className={`space-y-4 p-4 rounded-lg border border-border ${localDarkMode ? "member-dark" : ""}`} style={{ backgroundColor: localColors.background_color }}>
+        <div className={`space-y-4 p-4 rounded-lg border border-border`} style={{ backgroundColor: localColors.background_color }}>
           {/* Header Preview */}
           <div 
             className="h-14 rounded-lg flex items-center justify-between px-4"
