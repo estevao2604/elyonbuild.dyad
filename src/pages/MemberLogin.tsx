@@ -6,11 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import bcrypt from "bcryptjs";
-import { Eye, EyeOff, LogIn, Plus, Sparkles } from "lucide-react";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 
 const MemberLogin = () => {
   const { projectId } = useParams();
@@ -23,11 +21,6 @@ const MemberLogin = () => {
   const [branding, setBranding] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [allProjects, setAllProjects] = useState<any[]>([]);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [newProject, setNewProject] = useState({
-    name: "",
-    description: ""
-  });
 
   useEffect(() => {
     if (projectId) {
@@ -52,7 +45,7 @@ const MemberLogin = () => {
       const { data: projectsData, error: projectsError } = await sb
         .from("projects")
         .select("*")
-        .limit(20);
+        .limit(20); // Limite para evitar carregar muitos projetos desnecessariamente
 
       if (projectsError) {
         console.error("Erro ao carregar projetos:", projectsError);
@@ -101,33 +94,6 @@ const MemberLogin = () => {
       setError("Erro ao carregar informações do projeto");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCreateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const { data: newProjectData, error } = await sb.from("projects").insert([{
-        name: newProject.name,
-        description: newProject.description,
-        owner_id: "test-user", // Usar um ID fixo para teste
-      }]).select().single();
-
-      if (error) throw error;
-      
-      toast.success("Projeto criado com sucesso!");
-      setCreateDialogOpen(false);
-      setNewProject({
-        name: "",
-        description: ""
-      });
-      
-      // Redirecionar para o novo projeto
-      if (newProjectData) {
-        navigate(`/member/${newProjectData.id}`);
-      }
-    } catch (error: any) {
-      toast.error("Erro ao criar projeto: " + error.message);
     }
   };
 
@@ -240,45 +206,6 @@ const MemberLogin = () => {
               >
                 Ver meus projetos
               </Button>
-              {allProjects.length === 0 && (
-                <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full bg-gradient-primary hover:opacity-90">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Criar Projeto de Teste
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-card border-border/50">
-                    <DialogHeader>
-                      <DialogTitle>Criar Projeto de Teste</DialogTitle>
-                      <DialogDescription>
-                        Crie um projeto de teste para continuar
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleCreateProject} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="name">Nome do Projulo</Label>
-                        <Input id="name" value={newProject.name} onChange={e => setNewProject({
-                          ...newProject,
-                          name: e.target.value
-                        })} required placeholder="Meu Projeto de Teste" className="bg-muted/50" />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="description">Descrição</Label>
-                        <Textarea id="description" value={newProject.description} onChange={e => setNewProject({
-                          ...newProject,
-                          description: e.target.value
-                        })} placeholder="Descrição do projeto..." className="bg-muted/50 min-h-[100px]" />
-                      </div>
-
-                      <Button type="submit" className="w-full bg-gradient-primary hover:opacity-90">
-                        Criar Projeto
-                      </Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-              )}
             </div>
           </CardContent>
         </Card>
