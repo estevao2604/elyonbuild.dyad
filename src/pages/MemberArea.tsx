@@ -146,11 +146,17 @@ const MemberArea = () => {
       setLoading(true);
 
       // Carregar projeto
-      const { data: projectData } = await sb
+      const { data: projectData, error: projectError } = await sb
         .from("projects")
         .select("*, project_branding(*)")
         .eq("id", projectId)
         .single();
+
+      if (projectError) {
+        console.error("Error loading project:", projectError);
+        toast.error("Projeto não encontrado");
+        return;
+      }
 
       setProject(projectData);
 
@@ -334,6 +340,7 @@ const MemberArea = () => {
     }
   };
 
+  // Usar branding ou dados do projeto como fallback
   const brandingData = branding || project?.project_branding?.[0];
   const primaryColor = brandingData?.primary_color || "#6366F1";
   const secondaryColor = brandingData?.secondary_color || "#22D3EE";
@@ -362,11 +369,11 @@ const MemberArea = () => {
                 {logoUrl && (
                   <img
                     src={logoUrl}
-                    alt={project?.name}
-                    className="h-10 object-contain"
+                    alt={project?.name || "Logo"}
+                    className="h-10 w-10 object-contain"
                   />
                 )}
-                <h1 className="text-xl font-bold hidden md:block">{project?.name}</h1>
+                <h1 className="text-xl font-bold hidden md:block">{project?.name || "Área de Membros"}</h1>
               </div>
 
               <div className="flex items-center gap-4">

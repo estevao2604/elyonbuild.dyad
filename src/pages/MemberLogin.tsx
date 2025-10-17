@@ -28,16 +28,22 @@ const MemberLogin = () => {
     if (!projectId) return;
 
     try {
-      const { data, error } = await sb
+      // Carregar projeto primeiro
+      const { data: projectData, error: projectError } = await sb
         .from("projects")
-        .select("*, project_branding(*)")
+        .select("*")
         .eq("id", projectId)
         .single();
 
-      if (error) throw error;
-      setProject(data);
+      if (projectError) {
+        console.error("Error loading project:", projectError);
+        toast.error("Projeto não encontrado");
+        return;
+      }
 
-      // Load branding data
+      setProject(projectData);
+
+      // Carregar branding
       const { data: brandingData } = await sb
         .from("project_branding")
         .select("*")
@@ -47,7 +53,7 @@ const MemberLogin = () => {
       setBranding(brandingData);
     } catch (error) {
       console.error("Error loading project:", error);
-      toast.error("Projeto não encontrado");
+      toast.error("Erro ao carregar projeto");
     }
   };
 
@@ -105,6 +111,7 @@ const MemberLogin = () => {
     }
   };
 
+  // Usar branding ou dados do projeto como fallback
   const brandingData = branding || project?.project_branding?.[0];
   const backgroundColor = brandingData?.background_color || "#0F172A";
   const containerColor = brandingData?.container_color || "#1E293B";
@@ -116,19 +123,19 @@ const MemberLogin = () => {
   return (
     <div 
       className={`min-h-screen flex items-center justify-center relative overflow-hidden ${darkMode ? "dark" : ""}`}
-      style={{ backgroundColor: backgroundColor }}
+      style={{ backgroundColor }}
     >
       <div className="w-full max-w-md relative z-10 mx-4">
         <div className="text-center mb-8 space-y-3">
           {logoUrl && (
             <img
               src={logoUrl}
-              alt={project?.name}
-              className="h-16 w-16 mx-auto"
+              alt={project?.name || "Logo"}
+              className="h-16 w-16 mx-auto object-contain"
             />
           )}
           <h1 className="text-2xl font-bold" style={{ color: textColor }}>
-            {`Entrar ${project?.name ? `na ${project.name}` : "na Área de Membros"}`}
+            {project?.name ? `Entrar na ${project.name}` : "Área de Membros"}
           </h1>
           <p className="text-sm" style={{ color: `${textColor}CC` }}>
             Acesse sua plataforma de infoprodutos
