@@ -83,7 +83,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
     }
   };
 
-  const handleFileUpload = async (file: File, type: "logo" | "banner") => {
+  const handleFileUpload = async (file: File, type: "logo" | "banner" | "product-logo") => {
     try {
       setUploading(true);
       const fileExt = file.name.split(".").pop();
@@ -98,8 +98,14 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
 
       const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
 
-      const updateData =
-        type === "logo" ? { custom_logo_url: data.publicUrl } : { hero_banner_url: data.publicUrl };
+      let updateData: any = {};
+      if (type === "logo") {
+        updateData.custom_logo_url = data.publicUrl;
+      } else if (type === "banner") {
+        updateData.hero_banner_url = data.publicUrl;
+      } else if (type === "product-logo") {
+        updateData.product_logo_url = data.publicUrl;
+      }
 
       const { error: updateError } = await sb
         .from("project_branding")
@@ -108,7 +114,15 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
 
       if (updateError) throw updateError;
 
-      toast.success(`${type === "logo" ? "Logo" : "Banner"} atualizado com sucesso!`);
+      // Also update project logo for backward compatibility
+      if (type === "product-logo") {
+        await sb
+          .from("projects")
+          .update({ logo_url: data.publicUrl })
+          .eq("id", projectId);
+      }
+
+      toast.success(`${type === "logo" ? "Logo" : type === "banner" ? "Banner" : "Logo do Produto"} atualizado com sucesso!`);
       loadBranding();
     } catch (error: any) {
       toast.error("Erro ao fazer upload");
@@ -200,23 +214,23 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
         <div className="space-y-6">
           <Card className="shadow-card border-border/50">
             <CardHeader>
-              <CardTitle>Logo do Projeto</CardTitle>
+              <CardTitle>Logo do Produto</CardTitle>
               <CardDescription>
-                Upload do logo que aparecerá na área de membros
+                Logo que aparecerá na área de membros e no login dos seus clientes
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {branding?.custom_logo_url && (
+              {branding?.product_logo_url && (
                 <div className="flex items-center justify-center p-6 bg-muted/50 rounded-lg">
                   <img
-                    src={branding.custom_logo_url}
-                    alt="Logo"
+                    src={branding.product_logo_url}
+                    alt="Logo do Produto"
                     className="max-h-32 object-contain"
                   />
                 </div>
               )}
               <div>
-                <Label htmlFor="logo-upload" className="cursor-pointer">
+                <Label htmlFor="product-logo-upload" className="cursor-pointer">
                   <div className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-border rounded-lg hover:border-primary transition-smooth">
                     {uploading ? (
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
@@ -231,12 +245,12 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                   </div>
                 </Label>
                 <Input
-                  id="logo-upload"
+                  id="product-logo-upload"
                   type="file"
                   accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file, "logo");
+                    if (file) handleFileUpload(file, "product-logo");
                   }}
                   className="hidden"
                 />

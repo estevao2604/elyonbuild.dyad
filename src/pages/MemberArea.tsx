@@ -48,6 +48,7 @@ const MemberArea = () => {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState("modules");
+  const [branding, setBranding] = useState<any>(null);
 
   useEffect(() => {
     checkMemberSession();
@@ -152,6 +153,15 @@ const MemberArea = () => {
         .single();
 
       setProject(projectData);
+
+      // Carregar branding
+      const { data: brandingData } = await sb
+        .from("project_branding")
+        .select("*")
+        .eq("project_id", projectId)
+        .maybeSingle();
+
+      setBranding(brandingData);
 
       // Atualizar último login
       await sb
@@ -324,14 +334,14 @@ const MemberArea = () => {
     }
   };
 
-  const branding = project?.project_branding?.[0];
-  const primaryColor = branding?.primary_color || "#6366F1";
-  const secondaryColor = branding?.secondary_color || "#22D3EE";
-  const backgroundColor = branding?.background_color || "#0F172A";
-  const containerColor = branding?.container_color || "#1E293B";
-  const buttonColor = branding?.button_color || "#6366F1";
-  const textColor = branding?.text_color || "#F1F5F9";
-  const logoUrl = branding?.custom_logo_url || project?.logo_url;
+  const brandingData = branding || project?.project_branding?.[0];
+  const primaryColor = brandingData?.primary_color || "#6366F1";
+  const secondaryColor = brandingData?.secondary_color || "#22D3EE";
+  const backgroundColor = brandingData?.background_color || "#0F172A";
+  const containerColor = brandingData?.container_color || "#1E293B";
+  const buttonColor = brandingData?.button_color || "#6366F1";
+  const textColor = brandingData?.text_color || "#F1F5F9";
+  const logoUrl = brandingData?.product_logo_url || brandingData?.custom_logo_url || project?.logo_url;
 
   if (loading) {
     return (

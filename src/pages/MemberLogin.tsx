@@ -18,6 +18,7 @@ const MemberLogin = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [project, setProject] = useState<any>(null);
+  const [branding, setBranding] = useState<any>(null);
 
   useEffect(() => {
     loadProject();
@@ -35,6 +36,15 @@ const MemberLogin = () => {
 
       if (error) throw error;
       setProject(data);
+
+      // Load branding data
+      const { data: brandingData } = await sb
+        .from("project_branding")
+        .select("*")
+        .eq("project_id", projectId)
+        .maybeSingle();
+
+      setBranding(brandingData);
     } catch (error) {
       console.error("Error loading project:", error);
       toast.error("Projeto não encontrado");
@@ -95,14 +105,14 @@ const MemberLogin = () => {
     }
   };
 
-  const branding = project?.project_branding?.[0];
-  const backgroundColor = branding?.background_color || "#0F172A";
-  const containerColor = branding?.container_color || "#1E293B";
-  const buttonColor = branding?.button_color || "#6366F1";
-  const textColor = branding?.text_color || "#F1F5F9";
-  const logoUrl = branding?.custom_logo_url || project?.logo_url;
-  const bannerUrl = branding?.hero_banner_url;
-  const darkMode = branding?.dark_mode || false;
+  const brandingData = branding || project?.project_branding?.[0];
+  const backgroundColor = brandingData?.background_color || "#0F172A";
+  const containerColor = brandingData?.container_color || "#1E293B";
+  const buttonColor = brandingData?.button_color || "#6366F1";
+  const textColor = brandingData?.text_color || "#F1F5F9";
+  const logoUrl = brandingData?.product_logo_url || brandingData?.custom_logo_url || project?.logo_url;
+  const bannerUrl = brandingData?.hero_banner_url;
+  const darkMode = brandingData?.dark_mode || false;
 
   return (
     <div 
