@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      project_branding: {
+        Row: {
+          accent_color: string
+          background_color: string | null
+          button_color: string | null
+          card_text_color: string | null
+          container_color: string | null
+          created_at: string
+          custom_logo_url: string | null
+          dark_mode: boolean | null
+          header_background_color: string | null
+          header_text_color: string | null
+          id: string
+          muted_text_color: string | null
+          primary_color: string
+          project_id: string
+          secondary_color: string
+          text_color: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          accent_color?: string
+          background_color?: string | null
+          button_color?: string | null
+          card_text_color?: string | null
+          container_color?: string | null
+          created_at?: string
+          custom_logo_url?: string | null
+          dark_mode?: boolean | null
+          header_background_color?: string | null
+          header_text_color?: string | null
+          id?: string
+          muted_text_color?: string | null
+          primary_color?: string
+          project_id: string
+          secondary_color?: string
+          text_color?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          accent_color?: string
+          background_color?: string | null
+          button_color?: string | null
+          card_text_color?: string | null
+          container_color?: string | null
+          created_at?: string
+          custom_logo_url?: string | null
+          dark_mode?: boolean | null
+          header_background_color?: string | null
+          header_text_color?: string | null
+          id?: string
+          muted_text_color?: string | null
+          primary_color?: string
+          project_id?: string
+          secondary_color?: string
+          text_color?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_branding_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       [_ in never]: never
     }
     Views: {
