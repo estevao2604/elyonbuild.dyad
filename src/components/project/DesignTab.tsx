@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import { useProjectBranding } from "@/hooks/useProjectBranding";
 import LogoUploadCard from "./design/LogoUploadCard";
 import ColorPickerSection from "./design/ColorPickerSection";
-import DarkModeToggleCard from "./design/DarkModeToggleCard";
 import DesignPreviewCard from "./design/DesignPreviewCard";
 import DesignActions from "./design/DesignActions";
 
@@ -73,23 +72,19 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
             customLogoUrl={localColors.custom_logo_url}
             saveBranding={saveBranding}
           />
+          <DesignPreviewCard
+            localColors={localColors}
+            localDarkMode={localDarkMode}
+          />
         </div>
 
         <div className="space-y-6">
           <ColorPickerSection
             localColors={localColors}
             setLocalColors={setLocalColors}
-            defaultBranding={defaultBranding}
-          />
-
-          <DarkModeToggleCard
             localDarkMode={localDarkMode}
             setLocalDarkMode={setLocalDarkMode}
-          />
-
-          <DesignPreviewCard
-            localColors={localColors}
-            localDarkMode={localDarkMode}
+            defaultBranding={defaultBranding}
           />
 
           <DesignActions
