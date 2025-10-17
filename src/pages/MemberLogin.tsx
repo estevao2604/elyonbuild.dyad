@@ -23,6 +23,7 @@ const MemberLogin = () => {
 
   useEffect(() => {
     if (projectId) {
+      console.log("Tentando carregar projeto com ID:", projectId);
       loadProject();
     } else {
       setError("ID do projeto não fornecido");
@@ -40,6 +41,7 @@ const MemberLogin = () => {
       setError(null);
 
       // Carregar projeto primeiro
+      console.log("Consultando projeto com ID:", projectId);
       const { data: projectData, error: projectError } = await sb
         .from("projects")
         .select("*")
@@ -47,11 +49,26 @@ const MemberLogin = () => {
         .single();
 
       if (projectError) {
-        console.error("Error loading project:", projectError);
+        console.error("Erro ao carregar projeto:", projectError);
+        console.error("Detalhes do erro:", {
+          code: projectError.code,
+          message: projectError.message,
+          details: projectError.details
+        });
+        
+        // Verificar se o projeto existe com uma consulta diferente
+        const { data: allProjects } = await sb
+          .from("projects")
+          .select("id, name")
+          .limit(10);
+        
+        console.log("Projetos existentes:", allProjects);
+        
         setError("Projeto não encontrado ou ID inválido");
         return;
       }
 
+      console.log("Projeto encontrado:", projectData);
       setProject(projectData);
 
       // Carregar branding
@@ -151,9 +168,24 @@ const MemberLogin = () => {
           <CardContent className="p-6 text-center">
             <h2 className="text-xl font-bold mb-2">Erro</h2>
             <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={() => navigate("/")} className="w-full">
-              Voltar para o início
-            </Button>
+            {error === "Projeto não encontrado ou ID inválido" && (
+              <div className="text-xs text-muted-foreground mb-4">
+                <p>ID do projeto: {projectId}</p>
+                <p>Verifique se o projeto existe e se o ID está correto</p>
+              </div>
+            )}
+            <div className="flex gap-2 justify-center">
+              <Button onClick={() => navigate("/")} className="w-full sm:w-auto">
+                Voltar para o início
+              </Button>
+              <Button 
+                onClick={() => navigate("/dashboard")} 
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                Ver meus projetos
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
