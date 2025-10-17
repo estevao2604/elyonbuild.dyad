@@ -14,7 +14,11 @@ interface Branding {
   primary_color: string;
   secondary_color: string;
   accent_color: string;
-  product_logo_url: string | null;
+  background_color: string | null;
+  container_color: string | null;
+  button_color: string | null;
+  text_color: string | null;
+  dark_mode: boolean | null;
 }
 
 interface DesignTabProps {
@@ -83,11 +87,11 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
     }
   };
 
-  const handleFileUpload = async (file: File, type: "logo" | "product-logo") => {
+  const handleFileUpload = async (file: File) => {
     try {
       setUploading(true);
       const fileExt = file.name.split(".").pop();
-      const fileName = `${projectId}-${type}-${Date.now()}.${fileExt}`;
+      const fileName = `${projectId}-logo-${Date.now()}.${fileExt}`;
       const filePath = `branding/${fileName}`;
 
       // Use the correct storage bucket
@@ -99,29 +103,21 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
 
       const { data } = supabase.storage.from("project-files").getPublicUrl(filePath);
 
-      let updateData: any = {};
-      if (type === "logo") {
-        updateData.custom_logo_url = data.publicUrl;
-      } else if (type === "product-logo") {
-        updateData.product_logo_url = data.publicUrl;
-      }
-
+      // Update both custom_logo_url and project logo_url
       const { error: updateError } = await sb
         .from("project_branding")
-        .update(updateData)
+        .update({ custom_logo_url: data.publicUrl })
         .eq("project_id", projectId);
 
       if (updateError) throw updateError;
 
       // Also update project logo for backward compatibility
-      if (type === "product-logo") {
-        await sb
-          .from("projects")
-          .update({ logo_url: data.publicUrl })
-          .eq("id", projectId);
-      }
+      await sb
+        .from("projects")
+        .update({ logo_url: data.publicUrl })
+        .eq("id", projectId);
 
-      toast.success(`${type === "logo" ? "Logo" : "Logo do Produto"} atualizado com sucesso!`);
+      toast.success("Logo do Produto atualizado com sucesso!");
       loadBranding();
     } catch (error: any) {
       console.error("Upload error:", error);
@@ -220,10 +216,10 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {branding?.product_logo_url && (
+              {branding?.custom_logo_url && (
                 <div className="flex items-center justify-center p-6 bg-muted/50 rounded-lg">
                   <img
-                    src={branding.product_logo_url}
+                    src={branding.custom_logo_url}
                     alt="Logo do Produto"
                     className="max-h-32 object-contain"
                   />
@@ -250,7 +246,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                   accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file, "product-logo");
+                    if (file) handleFileUpload(file);
                   }}
                   className="hidden"
                 />

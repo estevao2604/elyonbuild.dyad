@@ -110,8 +110,7 @@ const MemberLogin = () => {
   const containerColor = brandingData?.container_color || "#1E293B";
   const buttonColor = brandingData?.button_color || "#6366F1";
   const textColor = brandingData?.text_color || "#F1F5F9";
-  const logoUrl = brandingData?.product_logo_url || brandingData?.custom_logo_url || project?.logo_url;
-  const bannerUrl = brandingData?.hero_banner_url;
+  const logoUrl = brandingData?.custom_logo_url || project?.logo_url;
   const darkMode = brandingData?.dark_mode || false;
 
   return (
@@ -119,14 +118,6 @@ const MemberLogin = () => {
       className={`min-h-screen flex items-center justify-center relative overflow-hidden ${darkMode ? "dark" : ""}`}
       style={{ backgroundColor: backgroundColor }}
     >
-      {/* Background with banner or gradient */}
-      {bannerUrl && (
-        <div className="absolute inset-0 z-0">
-          <img src={bannerUrl} alt="Background" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-        </div>
-      )}
-
       <div className="w-full max-w-md relative z-10 mx-4">
         <div className="text-center mb-8 space-y-3">
           {logoUrl && (
