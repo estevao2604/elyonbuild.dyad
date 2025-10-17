@@ -285,19 +285,36 @@ const MemberLogin = () => {
       className={`min-h-screen flex items-center justify-center relative overflow-hidden ${darkMode ? "dark" : ""}`}
       style={{ backgroundColor }}
     >
-      <div className="w-full max-w-md relative z-10 mx-4">
-        <div className="text-center mb-8 space-y-3">
-          {logoUrl && (
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          backgroundSize: '60px 60px'
+        }} />
+      </div>
+
+      {/* Logo Container */}
+      <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-20">
+        {logoUrl && (
+          <div className="relative group">
             <img
               src={logoUrl}
               alt={project?.name || "Logo"}
-              className="h-16 w-16 mx-auto object-contain"
+              className="h-20 w-20 md:h-24 md:w-24 object-contain drop-shadow-2xl transition-all duration-300 group-hover:scale-110"
+              style={{ filter: 'drop-shadow(0 10px 25px rgba(0,0,0,0.3))' }}
             />
-          )}
-          <h1 className="text-2xl font-bold" style={{ color: textColor }}>
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </div>
+        )}
+      </div>
+
+      {/* Main Content */}
+      <div className="w-full max-w-md relative z-10 mx-4">
+        <div className="text-center mb-8 space-y-3">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ color: textColor }}>
             {project?.name ? `Entrar na ${project.name}` : "Área de Membros"}
           </h1>
-          <p className="text-sm" style={{ color: `${textColor}CC` }}>
+          <p className="text-base md:text-lg" style={{ color: `${textColor}CC` }}>
             Acesse sua plataforma de infoprodutos
           </p>
         </div>
@@ -315,11 +332,12 @@ const MemberLogin = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com"
                 required
-                className="h-12 border-opacity-40"
+                className="h-12 border-opacity-40 text-lg"
                 style={{ 
                   backgroundColor: containerColor,
                   borderColor: `${textColor}40`,
-                  color: textColor
+                  color: textColor,
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
                 }}
               />
             </div>
@@ -336,11 +354,12 @@ const MemberLogin = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Sua senha"
                   required
-                  className="h-12 pr-10 border-opacity-40"
+                  className="h-12 pr-12 border-opacity-40 text-lg"
                   style={{ 
                     backgroundColor: containerColor,
                     borderColor: `${textColor}40`,
-                    color: textColor
+                    color: textColor,
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
                   }}
                 />
                 <button
@@ -349,23 +368,24 @@ const MemberLogin = () => {
                   className="absolute right-3 top-1/2 -translate-y-1/2 transition-smooth"
                   style={{ color: `${textColor}80` }}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
             </div>
 
             <Button
               type="submit"
-              className="w-full h-12 font-medium transition-smooth hover:opacity-90"
+              className="w-full h-14 text-lg font-bold tracking-wide transition-all duration-300 hover:scale-105 hover:shadow-xl"
               disabled={loading}
               style={{ 
                 backgroundColor: buttonColor,
-                color: "white"
+                color: "white",
+                boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.4)'
               }}
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3" />
                   <span>Entrando...</span>
                 </>
               ) : (
@@ -375,6 +395,10 @@ const MemberLogin = () => {
           </form>
         </div>
       </div>
+
+      {/* Decorative Elements */}
+      <div className="absolute bottom-8 left-8 w-32 h-32 bg-primary/10 rounded-full blur-3xl opacity-50" />
+      <div className="absolute top-8 right-8 w-24 h-24 bg-secondary/10 rounded-full blur-3xl opacity-50" />
     </div>
   );
 };
