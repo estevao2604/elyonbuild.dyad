@@ -20,6 +20,7 @@ const MemberLogin = () => {
   const [project, setProject] = useState<any>(null);
   const [branding, setBranding] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [allProjects, setAllProjects] = useState<any[]>([]);
 
   useEffect(() => {
     if (projectId) {
@@ -40,8 +41,31 @@ const MemberLogin = () => {
       setLoading(true);
       setError(null);
 
-      // Carregar projeto primeiro
-      console.log("Consultando projeto com ID:", projectId);
+      // Carregar todos os projetos primeiro para ver se o ID existe
+      const { data: projectsData, error: projectsError } = await sb
+        .from("projects")
+        .select("*")
+        .limit(20);
+
+      if (projectsError) {
+        console.error("Erro ao carregar projetos:", projectsError);
+        setError("Erro ao carregar projetos do banco de dados");
+        return;
+      }
+
+      setAllProjects(projectsData || []);
+
+      // Verificar se o projeto existe
+      const projectExists = projectsData?.some(p => p.id === projectId);
+      
+      if (!projectExists) {
+        console.error("Projeto não encontrado:", projectId);
+        console.log("Projetos disponíveis:", projectsData?.map(p => ({ id: p.id, name: p.name })));
+        setError("Projeto não encontrado. Verifique se o ID está correto ou se o projeto foi excluído.");
+        return;
+      }
+
+      // Carregar projeto específico
       const { data: projectData, error: projectError } = await sb
         .from("projects")
         .select("*")
@@ -49,22 +73,8 @@ const MemberLogin = () => {
         .single();
 
       if (projectError) {
-        console.error("Erro ao carregar projeto:", projectError);
-        console.error("Detalhes do erro:", {
-          code: projectError.code,
-          message: projectError.message,
-          details: projectError.details
-        });
-        
-        // Verificar se o projeto existe com uma consulta diferente
-        const { data: allProjects } = await sb
-          .from("projects")
-          .select("id, name")
-          .limit(10);
-        
-        console.log("Projetos existentes:", allProjects);
-        
-        setError("Projeto não encontrado ou ID inválido");
+        console.error("Erro ao carregar projeto específico:", projectError);
+        setError("Erro ao carregar informações do projeto");
         return;
       }
 
@@ -168,10 +178,21 @@ const MemberLogin = () => {
           <CardContent className="p-6 text-center">
             <h2 className="text-xl font-bold mb-2">Erro</h2>
             <p className="text-muted-foreground mb-4">{error}</p>
-            {error === "Projeto não encontrado ou ID inválido" && (
+            {error.includes("Projeto não encontrado") && (
               <div className="text-xs text-muted-foreground mb-4">
                 <p>ID do projeto: {projectId}</p>
-                <p>Verifique se o projeto existe e se o ID está correto</p>
+                {allProjects.length > 0 && (
+                  <div className="mt-2">
+                    <p>Projetos disponíveis:</p>
+                    <ul className="text-left mt-1">
+                      {allProjects.slice(0, 5).map(p => (
+                        <li key={p.id} className="text-xs">
+                          {p.name} (ID: {p.id})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
             <div className="flex gap-2 justify-center">
