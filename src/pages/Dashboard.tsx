@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 import type { User } from "@supabase/supabase-js";
 import UserProfile from "@/components/UserProfile";
+
 interface Project {
   id: string;
   name: string;
@@ -22,6 +23,7 @@ interface Project {
   secondary_color: string;
   created_at: string;
 }
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
@@ -32,6 +34,7 @@ const Dashboard = () => {
     name: "",
     description: ""
   });
+
   useEffect(() => {
     const checkAuth = async () => {
       const {
@@ -60,6 +63,7 @@ const Dashboard = () => {
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
+
   const loadProjects = async () => {
     try {
       const {
@@ -76,6 +80,7 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
+
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -98,10 +103,12 @@ const Dashboard = () => {
       toast.error("Erro ao criar projeto");
     }
   };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");
   };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -110,6 +117,7 @@ const Dashboard = () => {
         </div>
       </div>;
   }
+
   return <div className="min-h-screen bg-background">
       <nav className="border-b border-border bg-card/50 backdrop-blur-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 h-14 sm:h-16 flex items-center justify-between">

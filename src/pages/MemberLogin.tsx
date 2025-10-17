@@ -19,15 +19,26 @@ const MemberLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [project, setProject] = useState<any>(null);
   const [branding, setBranding] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadProject();
+    if (projectId) {
+      loadProject();
+    } else {
+      setError("ID do projeto não fornecido");
+    }
   }, [projectId]);
 
   const loadProject = async () => {
-    if (!projectId) return;
+    if (!projectId) {
+      setError("ID do projeto não fornecido");
+      return;
+    }
 
     try {
+      setLoading(true);
+      setError(null);
+
       // Carregar projeto primeiro
       const { data: projectData, error: projectError } = await sb
         .from("projects")
@@ -37,7 +48,7 @@ const MemberLogin = () => {
 
       if (projectError) {
         console.error("Error loading project:", projectError);
-        toast.error("Projeto não encontrado");
+        setError("Projeto não encontrado ou ID inválido");
         return;
       }
 
@@ -53,7 +64,9 @@ const MemberLogin = () => {
       setBranding(brandingData);
     } catch (error) {
       console.error("Error loading project:", error);
-      toast.error("Erro ao carregar projeto");
+      setError("Erro ao carregar informações do projeto");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -119,6 +132,33 @@ const MemberLogin = () => {
   const textColor = brandingData?.text_color || "#F1F5F9";
   const logoUrl = brandingData?.custom_logo_url || project?.logo_url;
   const darkMode = brandingData?.dark_mode || false;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor }}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor }}>
+        <Card className="max-w-md mx-4">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-bold mb-2">Erro</h2>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <Button onClick={() => navigate("/")} className="w-full">
+              Voltar para o início
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div 
