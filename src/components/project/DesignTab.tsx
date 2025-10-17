@@ -19,6 +19,10 @@ interface Branding {
   button_color: string | null;
   text_color: string | null;
   dark_mode: boolean | null;
+  header_background_color: string | null; // New
+  header_text_color: string | null; // New
+  card_text_color: string | null; // New
+  muted_text_color: string | null; // New
 }
 
 interface DesignTabProps {
@@ -32,13 +36,17 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
   const [uploading, setUploading] = useState(false);
 
   const [colors, setColors] = useState({
-    primary_color: "#6366F1",
-    secondary_color: "#22D3EE",
+    primary_color: "#D4AF37",
+    secondary_color: "#FFD700",
     accent_color: "#F59E0B",
-    background_color: "#0F172A",
-    container_color: "#1E293B",
-    button_color: "#6366F1",
-    text_color: "#F1F5F9",
+    background_color: "#0A0A0A",
+    container_color: "#1A1A1A",
+    button_color: "#D4AF37",
+    text_color: "#F5F5F5",
+    header_background_color: "#1E293B", // Default for new field
+    header_text_color: "#F1F5F9", // Default for new field
+    card_text_color: "#F1F5F9", // Default for new field
+    muted_text_color: "#A0A0A0", // Default for new field
   });
 
   const [darkMode, setDarkMode] = useState(false);
@@ -63,17 +71,34 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
           primary_color: data.primary_color,
           secondary_color: data.secondary_color,
           accent_color: data.accent_color,
-          background_color: data.background_color || "#0F172A",
-          container_color: data.container_color || "#1E293B",
-          button_color: data.button_color || "#6366F1",
-          text_color: data.text_color || "#F1F5F9",
+          background_color: data.background_color || "#0A0A0A",
+          container_color: data.container_color || "#1A1A1A",
+          button_color: data.button_color || "#D4AF37",
+          text_color: data.text_color || "#F5F5F5",
+          header_background_color: data.header_background_color || "#1E293B", // Load new field
+          header_text_color: data.header_text_color || "#F1F5F9", // Load new field
+          card_text_color: data.card_text_color || "#F1F5F9", // Load new field
+          muted_text_color: data.muted_text_color || "#A0A0A0", // Load new field
         });
         setDarkMode(data.dark_mode || false);
       } else {
-        // Create default branding
+        // Create default branding with new fields
         const { data: newBranding, error: createError } = await sb
           .from("project_branding")
-          .insert([{ project_id: projectId }])
+          .insert([{ 
+            project_id: projectId,
+            primary_color: colors.primary_color,
+            secondary_color: colors.secondary_color,
+            accent_color: colors.accent_color,
+            background_color: colors.background_color,
+            container_color: colors.container_color,
+            button_color: colors.button_color,
+            text_color: colors.text_color,
+            header_background_color: colors.header_background_color, // Set default for new field
+            header_text_color: colors.header_text_color, // Set default for new field
+            card_text_color: colors.card_text_color, // Set default for new field
+            muted_text_color: colors.muted_text_color, // Set default for new field
+          }])
           .select()
           .single();
 
@@ -94,7 +119,6 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
       const fileName = `${projectId}-logo-${Date.now()}.${fileExt}`;
       const filePath = `branding/${fileName}`;
 
-      // Use the correct storage bucket
       const { error: uploadError } = await supabase.storage
         .from("project-files")
         .upload(filePath, file);
@@ -103,7 +127,6 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
 
       const { data } = supabase.storage.from("project-files").getPublicUrl(filePath);
 
-      // Update both custom_logo_url and project logo_url
       const { error: updateError } = await sb
         .from("project_branding")
         .update({ custom_logo_url: data.publicUrl })
@@ -111,7 +134,6 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
 
       if (updateError) throw updateError;
 
-      // Also update project logo for backward compatibility
       await sb
         .from("projects")
         .update({ logo_url: data.publicUrl })
@@ -142,7 +164,6 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
 
       if (error) throw error;
 
-      // Also update project colors for backward compatibility
       await sb
         .from("projects")
         .update({
@@ -173,6 +194,10 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
         container_color: "#1A1A1A",
         button_color: "#D4AF37",
         text_color: "#F5F5F5",
+        header_background_color: "#1E293B", // Reset new field
+        header_text_color: "#F1F5F9", // Reset new field
+        card_text_color: "#F1F5F9", // Reset new field
+        muted_text_color: "#A0A0A0", // Reset new field
       };
 
       const { error } = await sb
@@ -294,7 +319,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                         setColors({ ...colors, primary_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
-                      placeholder="#6366F1"
+                      placeholder="#D4AF37"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -321,7 +346,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                         setColors({ ...colors, secondary_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
-                      placeholder="#22D3EE"
+                      placeholder="#FFD700"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -357,7 +382,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="background-color">Cor do Fundo</Label>
+                  <Label htmlFor="background-color">Cor do Fundo (Geral)</Label>
                   <div className="flex gap-3">
                     <Input
                       id="background-color"
@@ -375,16 +400,16 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                         setColors({ ...colors, background_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
-                      placeholder="#0F172A"
+                      placeholder="#0A0A0A"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Cor de fundo da tela de login
+                    Cor de fundo principal da área de membros e tela de login
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="container-color">Cor do Container</Label>
+                  <Label htmlFor="container-color">Cor do Container (Cards)</Label>
                   <div className="flex gap-3">
                     <Input
                       id="container-color"
@@ -402,11 +427,11 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                         setColors({ ...colors, container_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
-                      placeholder="#1E293B"
+                      placeholder="#1A1A1A"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Cor da caixa de login
+                    Cor de fundo para cards de módulos/aulas e caixa de login
                   </p>
                 </div>
 
@@ -429,16 +454,16 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                         setColors({ ...colors, button_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
-                      placeholder="#6366F1"
+                      placeholder="#D4AF37"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Cor dos botões de ação
+                    Cor dos botões de ação na área de membros
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="text-color">Cor do Texto</Label>
+                  <Label htmlFor="text-color">Cor do Texto (Principal)</Label>
                   <div className="flex gap-3">
                     <Input
                       id="text-color"
@@ -456,11 +481,120 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                         setColors({ ...colors, text_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
+                      placeholder="#F5F5F5"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Cor principal dos textos na área de membros
+                  </p>
+                </div>
+
+                {/* New fields for header and card text */}
+                <div className="space-y-2">
+                  <Label htmlFor="header-background-color">Cor do Fundo do Cabeçalho</Label>
+                  <div className="flex gap-3">
+                    <Input
+                      id="header-background-color"
+                      type="color"
+                      value={colors.header_background_color}
+                      onChange={(e) =>
+                        setColors({ ...colors, header_background_color: e.target.value })
+                      }
+                      className="h-12 w-20 cursor-pointer"
+                    />
+                    <Input
+                      type="text"
+                      value={colors.header_background_color}
+                      onChange={(e) =>
+                        setColors({ ...colors, header_background_color: e.target.value })
+                      }
+                      className="font-mono bg-muted/50"
+                      placeholder="#1E293B"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Cor de fundo da barra de navegação superior
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="header-text-color">Cor do Texto do Cabeçalho</Label>
+                  <div className="flex gap-3">
+                    <Input
+                      id="header-text-color"
+                      type="color"
+                      value={colors.header_text_color}
+                      onChange={(e) =>
+                        setColors({ ...colors, header_text_color: e.target.value })
+                      }
+                      className="h-12 w-20 cursor-pointer"
+                    />
+                    <Input
+                      type="text"
+                      value={colors.header_text_color}
+                      onChange={(e) =>
+                        setColors({ ...colors, header_text_color: e.target.value })
+                      }
+                      className="font-mono bg-muted/50"
                       placeholder="#F1F5F9"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Cor principal dos textos
+                    Cor dos títulos e ícones na barra de navegação
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="card-text-color">Cor do Texto dos Cards</Label>
+                  <div className="flex gap-3">
+                    <Input
+                      id="card-text-color"
+                      type="color"
+                      value={colors.card_text_color}
+                      onChange={(e) =>
+                        setColors({ ...colors, card_text_color: e.target.value })
+                      }
+                      className="h-12 w-20 cursor-pointer"
+                    />
+                    <Input
+                      type="text"
+                      value={colors.card_text_color}
+                      onChange={(e) =>
+                        setColors({ ...colors, card_text_color: e.target.value })
+                      }
+                      className="font-mono bg-muted/50"
+                      placeholder="#F1F5F9"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Cor dos títulos e descrições principais dentro dos cards
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="muted-text-color">Cor do Texto Secundário (Muted)</Label>
+                  <div className="flex gap-3">
+                    <Input
+                      id="muted-text-color"
+                      type="color"
+                      value={colors.muted_text_color}
+                      onChange={(e) =>
+                        setColors({ ...colors, muted_text_color: e.target.value })
+                      }
+                      className="h-12 w-20 cursor-pointer"
+                    />
+                    <Input
+                      type="text"
+                      value={colors.muted_text_color}
+                      onChange={(e) =>
+                        setColors({ ...colors, muted_text_color: e.target.value })
+                      }
+                      className="font-mono bg-muted/50"
+                      placeholder="#A0A0A0"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Cor para textos menores e menos proeminentes
                   </p>
                 </div>
               </div>
@@ -486,23 +620,35 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                 </div>
 
                 <h4 className="font-semibold">Pré-visualização</h4>
-                <div className="space-y-3">
-                  <div
-                    className="h-12 rounded-lg flex items-center justify-center text-white font-semibold"
-                    style={{ backgroundColor: colors.button_color }}
+                <div className="space-y-3 p-4 rounded-lg" style={{ backgroundColor: colors.background_color }}>
+                  <div 
+                    className="h-14 rounded-lg flex items-center justify-between px-4"
+                    style={{ backgroundColor: colors.header_background_color, color: colors.header_text_color }}
                   >
-                    Botão de Acesso
+                    <span className="font-bold text-lg">Cabeçalho</span>
+                    <Palette className="h-6 w-6" />
                   </div>
                   <div
-                    className="p-4 rounded-lg"
+                    className="p-4 rounded-lg space-y-2"
                     style={{ 
                       backgroundColor: colors.container_color,
-                      color: colors.text_color
+                      color: colors.card_text_color
                     }}
                   >
-                    <p className="font-medium">Container de Login</p>
-                    <p className="text-sm opacity-80">Exemplo de texto no container</p>
+                    <p className="font-medium text-lg">Título do Card</p>
+                    <p className="text-sm" style={{ color: colors.muted_text_color }}>
+                      Exemplo de descrição ou texto secundário no card.
+                    </p>
+                    <Button
+                      className="w-full h-10"
+                      style={{ backgroundColor: colors.button_color, color: colors.text_color }}
+                    >
+                      Botão de Ação
+                    </Button>
                   </div>
+                  <p className="text-sm text-center" style={{ color: colors.text_color }}>
+                    Texto geral da área de membros.
+                  </p>
                 </div>
               </div>
 

@@ -57,27 +57,46 @@ const MemberArea = () => {
   useEffect(() => {
     if (member) {
       loadData();
-      loadDarkModePreference();
     }
   }, [member]);
 
-  const loadDarkModePreference = async () => {
-    try {
-      const { data } = await sb
-        .from("project_branding")
-        .select("dark_mode")
-        .eq("project_id", projectId)
-        .maybeSingle();
+  const applyBrandingStyles = (brandingData: any) => {
+    const root = document.documentElement;
+    if (brandingData) {
+      root.style.setProperty('--member-background-color', brandingData.background_color || "#0F172A");
+      root.style.setProperty('--member-container-color', brandingData.container_color || "#1E293B");
+      root.style.setProperty('--member-text-color', brandingData.text_color || "#F1F5F9");
+      root.style.setProperty('--member-primary-color', brandingData.primary_color || "#6366F1");
+      root.style.setProperty('--member-secondary-color', brandingData.secondary_color || "#22D3EE");
+      root.style.setProperty('--member-accent-color', brandingData.accent_color || "#F59E0B");
+      root.style.setProperty('--member-button-color', brandingData.button_color || "#6366F1");
+      root.style.setProperty('--member-header-background-color', brandingData.header_background_color || "#1E293B");
+      root.style.setProperty('--member-header-text-color', brandingData.header_text_color || "#F1F5F9");
+      root.style.setProperty('--member-card-text-color', brandingData.card_text_color || "#F1F5F9");
+      root.style.setProperty('--member-muted-text-color', brandingData.muted_text_color || "#A0A0A0");
 
-      if (data?.dark_mode) {
+      if (brandingData.dark_mode) {
         setDarkMode(true);
-        document.documentElement.classList.add("dark");
+        root.classList.add("dark");
       } else {
         setDarkMode(false);
-        document.documentElement.classList.remove("dark");
+        root.classList.remove("dark");
       }
-    } catch (error) {
-      console.error("Error loading dark mode:", error);
+    } else {
+      // Reset to default if no branding data
+      root.style.removeProperty('--member-background-color');
+      root.style.removeProperty('--member-container-color');
+      root.style.removeProperty('--member-text-color');
+      root.style.removeProperty('--member-primary-color');
+      root.style.removeProperty('--member-secondary-color');
+      root.style.removeProperty('--member-accent-color');
+      root.style.removeProperty('--member-button-color');
+      root.style.removeProperty('--member-header-background-color');
+      root.style.removeProperty('--member-header-text-color');
+      root.style.removeProperty('--member-card-text-color');
+      root.style.removeProperty('--member-muted-text-color');
+      root.classList.remove("dark");
+      setDarkMode(false);
     }
   };
 
@@ -85,13 +104,13 @@ const MemberArea = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
     
+    const root = document.documentElement;
     if (newMode) {
-      document.documentElement.classList.add("dark");
+      root.classList.add("dark");
     } else {
-      document.documentElement.classList.remove("dark");
+      root.classList.remove("dark");
     }
 
-    // Salvar preferência no banco
     try {
       await sb
         .from("project_branding")
@@ -115,7 +134,6 @@ const MemberArea = () => {
       return;
     }
 
-    // Recarregar dados atualizados do membro (incluindo foto)
     try {
       const { data: updatedMember } = await sb
         .from("project_members")
@@ -145,7 +163,6 @@ const MemberArea = () => {
     try {
       setLoading(true);
 
-      // Carregar projeto
       const { data: projectData, error: projectError } = await sb
         .from("projects")
         .select("*")
@@ -160,7 +177,6 @@ const MemberArea = () => {
 
       setProject(projectData);
 
-      // Carregar branding - CORRIGIDO: Buscar diretamente da tabela project_branding
       const { data: brandingData, error: brandingError } = await sb
         .from("project_branding")
         .select("*")
@@ -171,31 +187,20 @@ const MemberArea = () => {
         console.error("Error loading branding:", brandingError);
       } else {
         setBranding(brandingData);
-        
-        // Aplicar configurações de branding imediatamente
-        if (brandingData) {
-          if (brandingData.dark_mode) {
-            setDarkMode(true);
-            document.documentElement.classList.add("dark");
-          }
-        }
+        applyBrandingStyles(brandingData); // Apply branding styles here
       }
 
-      // Atualizar último login
       await sb
         .from("project_members")
         .update({ last_login: new Date().toISOString() })
         .eq("id", member.id);
 
-      // Carregar módulos com acesso
       const { data: accessData } = await sb
         .from("member_module_access")
         .select("module_id")
         .eq("member_id", member.id);
 
       const moduleIds = accessData?.map(a => a.module_id) || [];
-
-      console.log("Module IDs with access:", moduleIds);
 
       if (moduleIds.length > 0) {
         const { data: modulesData, error: modulesError } = await sb
@@ -208,10 +213,8 @@ const MemberArea = () => {
         if (modulesError) {
           console.error("Error loading modules:", modulesError);
         } else {
-          console.log("Loaded modules:", modulesData);
           setModules(modulesData || []);
 
-          // Carregar aulas de cada módulo
           for (const module of modulesData || []) {
             const { data: lessonsData, error: lessonsError } = await sb
               .from("lessons")
@@ -223,7 +226,6 @@ const MemberArea = () => {
             if (lessonsError) {
               console.error(`Error loading lessons for module ${module.id}:`, lessonsError);
             } else {
-              console.log(`Loaded ${lessonsData?.length || 0} lessons for module ${module.title}`);
               setLessons(prev => ({
                 ...prev,
                 [module.id]: lessonsData || []
@@ -235,7 +237,6 @@ const MemberArea = () => {
         console.log("No module access found for member");
       }
 
-      // Carregar progresso
       const { data: progressData } = await sb
         .from("lesson_progress")
         .select("lesson_id, completed")
@@ -275,7 +276,6 @@ const MemberArea = () => {
           });
       }
 
-      // Atualizar estado local
       setProgress(prev => {
         const filtered = prev.filter(p => p.lesson_id !== lessonId);
         if (!currentStatus) {
@@ -352,19 +352,11 @@ const MemberArea = () => {
     }
   };
 
-  // Usar branding ou dados do projeto como fallback
-  const brandingData = branding || project?.project_branding?.[0];
-  const primaryColor = brandingData?.primary_color || "#6366F1";
-  const secondaryColor = brandingData?.secondary_color || "#22D3EE";
-  const backgroundColor = brandingData?.background_color || "#0F172A";
-  const containerColor = brandingData?.container_color || "#1E293B";
-  const buttonColor = brandingData?.button_color || "#6366F1";
-  const textColor = brandingData?.text_color || "#F1F5F9";
-  const logoUrl = brandingData?.custom_logo_url || project?.logo_url;
+  const logoUrl = branding?.custom_logo_url || project?.logo_url;
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--member-background-color, #0F172A)' }}>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
@@ -372,9 +364,15 @@ const MemberArea = () => {
 
   return (
     <div className={`min-h-screen ${darkMode ? "dark" : ""}`}>
-      <div className="min-h-screen bg-background transition-colors">
+      <div className="min-h-screen transition-colors" style={{ backgroundColor: 'var(--member-background-color, #0F172A)' }}>
         {/* Header */}
-        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <header 
+          className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50"
+          style={{ 
+            backgroundColor: 'var(--member-header-background-color, #1E293B)',
+            color: 'var(--member-header-text-color, #F1F5F9)'
+          }}
+        >
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -385,7 +383,7 @@ const MemberArea = () => {
                     className="h-10 w-10 object-contain"
                   />
                 )}
-                <h1 className="text-xl font-bold hidden md:block">{project?.name || "Área de Membros"}</h1>
+                <h1 className="text-xl font-bold hidden md:block" style={{ color: 'var(--member-header-text-color, #F1F5F9)' }}>{project?.name || "Área de Membros"}</h1>
               </div>
 
               <div className="flex items-center gap-4">
@@ -394,6 +392,7 @@ const MemberArea = () => {
                   size="icon"
                   onClick={toggleDarkMode}
                   className="rounded-full"
+                  style={{ color: 'var(--member-header-text-color, #F1F5F9)' }}
                 >
                   {darkMode ? (
                     <Sun className="h-5 w-5" />
@@ -406,12 +405,12 @@ const MemberArea = () => {
                   onClick={() => setActiveTab("profile")}
                   className="flex items-center gap-2 hover:opacity-80 transition-smooth"
                 >
-                  <Avatar className="h-9 w-9 border-2 border-primary">
+                  <Avatar className="h-9 w-9 border-2" style={{ borderColor: 'var(--member-primary-color, #6366F1)' }}>
                     <AvatarImage 
                       src={member?.profile_photo_url} 
                       alt={member?.full_name}
                     />
-                    <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                    <AvatarFallback style={{ backgroundColor: 'var(--member-primary-color, #6366F1)', color: 'var(--member-text-color, #F1F5F9)' }} className="font-semibold">
                       {member?.full_name?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -422,14 +421,14 @@ const MemberArea = () => {
         </header>
 
         {/* Main Content */}
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8" style={{ color: 'var(--member-text-color, #F1F5F9)' }}>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-8">
-              <TabsTrigger value="modules" className="gap-2">
+            <TabsList className="mb-8" style={{ backgroundColor: 'var(--member-container-color, #1E293B)' }}>
+              <TabsTrigger value="modules" className="gap-2" style={{ color: 'var(--member-text-color, #F1F5F9)' }}>
                 <BookOpen className="h-4 w-4" />
                 Meus Módulos
               </TabsTrigger>
-              <TabsTrigger value="profile" className="gap-2">
+              <TabsTrigger value="profile" className="gap-2" style={{ color: 'var(--member-text-color, #F1F5F9)' }}>
                 <User className="h-4 w-4" />
                 Meu Perfil
               </TabsTrigger>
@@ -438,20 +437,20 @@ const MemberArea = () => {
             <TabsContent value="modules">
               {/* Welcome Section */}
               <div className="mb-8">
-                <h2 className="text-2xl md:text-3xl font-bold mb-2">
+                <h2 className="text-2xl md:text-3xl font-bold mb-2" style={{ color: 'var(--member-text-color, #F1F5F9)' }}>
                   Olá, {member?.full_name?.split(' ')[0]}!
                 </h2>
-                <p className="text-muted-foreground">
+                <p style={{ color: 'var(--member-muted-text-color, #A0A0A0)' }}>
                   Bem-vindo(a) à sua área de membros
                 </p>
               </div>
 
               {/* Modules Grid */}
               {modules.length === 0 ? (
-                <Card className="shadow-sm">
+                <Card className="shadow-sm" style={{ backgroundColor: 'var(--member-container-color, #1E293B)' }}>
                   <CardContent className="flex flex-col items-center justify-center py-16">
-                    <BookOpen className="h-16 w-16 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground text-center">
+                    <BookOpen className="h-16 w-16 mb-4" style={{ color: 'var(--member-muted-text-color, #A0A0A0)' }} />
+                    <p className="text-center" style={{ color: 'var(--member-muted-text-color, #A0A0A0)' }}>
                       Nenhum módulo disponível ainda
                     </p>
                   </CardContent>
@@ -463,10 +462,11 @@ const MemberArea = () => {
                     variant="ghost"
                     onClick={() => setSelectedLesson(null)}
                     className="mb-4"
+                    style={{ color: 'var(--member-text-color, #F1F5F9)' }}
                   >
                     ← Voltar para módulos
                   </Button>
-                  <Card className="shadow-sm">
+                  <Card className="shadow-sm" style={{ backgroundColor: 'var(--member-container-color, #1E293B)' }}>
                     {modules.find(m => m.id === selectedLesson.module_id)?.banner_url && (
                       <div className="aspect-[3/1] overflow-hidden rounded-t-lg">
                         <img
@@ -479,8 +479,8 @@ const MemberArea = () => {
                     <CardHeader>
                       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                         <div className="flex-1">
-                          <CardTitle className="text-2xl md:text-3xl mb-2">{selectedLesson.title}</CardTitle>
-                          <CardDescription className="text-base">{selectedLesson.description}</CardDescription>
+                          <CardTitle className="text-2xl md:text-3xl mb-2" style={{ color: 'var(--member-card-text-color, #F1F5F9)' }}>{selectedLesson.title}</CardTitle>
+                          <CardDescription className="text-base" style={{ color: 'var(--member-muted-text-color, #A0A0A0)' }}>{selectedLesson.description}</CardDescription>
                         </div>
                         <Button
                           size="lg"
@@ -491,11 +491,11 @@ const MemberArea = () => {
                             )
                           }
                           className="w-full md:w-auto"
-                          style={
-                            isLessonCompleted(selectedLesson.id)
-                              ? { backgroundColor: primaryColor, color: "white" }
-                              : { backgroundColor: `${primaryColor}20`, color: primaryColor }
-                          }
+                          style={{ 
+                            backgroundColor: isLessonCompleted(selectedLesson.id) ? 'var(--member-primary-color, #6366F1)' : 'var(--member-button-color, #6366F1)', 
+                            color: 'white',
+                            opacity: isLessonCompleted(selectedLesson.id) ? 1 : 0.8
+                          }}
                         >
                           <CheckCircle className="h-5 w-5 mr-2" />
                           {isLessonCompleted(selectedLesson.id) ? "Concluído" : "Marcar como concluído"}
@@ -506,10 +506,11 @@ const MemberArea = () => {
                       {renderFilePreview(selectedLesson)}
                       
                       {selectedLesson.content && (
-                        <div className="mt-6 p-6 bg-muted/30 rounded-lg">
-                          <h3 className="font-semibold mb-3 text-lg">Conteúdo Adicional</h3>
+                        <div className="mt-6 p-6 rounded-lg" style={{ backgroundColor: 'var(--member-background-color, #0F172A)' }}>
+                          <h3 className="font-semibold mb-3 text-lg" style={{ color: 'var(--member-card-text-color, #F1F5F9)' }}>Conteúdo Adicional</h3>
                           <div
                             className="prose prose-sm max-w-none dark:prose-invert"
+                            style={{ color: 'var(--member-text-color, #F1F5F9)' }}
                             dangerouslySetInnerHTML={{ __html: selectedLesson.content }}
                           />
                         </div>
@@ -535,6 +536,7 @@ const MemberArea = () => {
                       <Card
                         key={module.id}
                         className="overflow-hidden hover:shadow-xl transition-all border-border/50 group flex flex-col"
+                        style={{ backgroundColor: 'var(--member-container-color, #1E293B)' }}
                       >
                         {/* Banner */}
                         {module.banner_url && (
@@ -549,11 +551,11 @@ const MemberArea = () => {
 
                         {/* Content */}
                         <CardHeader className="pb-3">
-                          <CardTitle className="text-xl line-clamp-2">
+                          <CardTitle className="text-xl line-clamp-2" style={{ color: 'var(--member-card-text-color, #F1F5F9)' }}>
                             {module.title}
                           </CardTitle>
                           {module.description && (
-                            <CardDescription className="mt-2 line-clamp-3">
+                            <CardDescription className="mt-2 line-clamp-3" style={{ color: 'var(--member-muted-text-color, #A0A0A0)' }}>
                               {module.description}
                             </CardDescription>
                           )}
@@ -562,13 +564,13 @@ const MemberArea = () => {
                         <CardContent className="flex-1 flex flex-col justify-between space-y-4">
                           {/* Stats */}
                           {moduleLessons.length > 0 && (
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--member-muted-text-color, #A0A0A0)' }}>
                               <div className="flex items-center gap-1">
                                 <BookOpen className="h-4 w-4" />
                                 <span>{moduleLessons.length} aula{moduleLessons.length !== 1 ? 's' : ''}</span>
                               </div>
                               {completedCount > 0 && (
-                                <div className="flex items-center gap-1 text-green-600 dark:text-green-500">
+                                <div className="flex items-center gap-1" style={{ color: 'var(--member-primary-color, #6366F1)' }}>
                                   <CheckCircle className="h-4 w-4" />
                                   <span>{completedCount} concluída{completedCount !== 1 ? 's' : ''}</span>
                                 </div>
@@ -580,7 +582,7 @@ const MemberArea = () => {
                           <Button
                             className="w-full gap-2 group-hover:gap-3 transition-all"
                             size="lg"
-                            style={{ backgroundColor: buttonColor }}
+                            style={{ backgroundColor: 'var(--member-button-color, #6366F1)', color: 'white' }}
                             onClick={() => {
                               const firstLesson = moduleLessons[0];
                               if (firstLesson) setSelectedLesson(firstLesson);
