@@ -153,18 +153,25 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
     try {
       setSaving(true);
 
-      const { error } = await sb
+      // Use upsert for project_branding to create if not exists, update otherwise
+      const { data: updatedBranding, error: brandingError } = await sb
         .from("project_branding")
-        .update({ 
+        .upsert({ 
+          project_id: projectId, // Ensure project_id is always included for upsert
           ...colors, 
           dark_mode: darkMode,
           updated_at: new Date().toISOString()
-        })
-        .eq("project_id", projectId);
+        }, { onConflict: 'project_id' }) // Conflict on project_id to update existing row
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (brandingError) throw brandingError;
 
-      await sb
+      // Update the local branding state with the new data
+      setBranding(updatedBranding);
+
+      // Update project's primary and secondary colors
+      const { error: projectUpdateError } = await sb
         .from("projects")
         .update({
           primary_color: colors.primary_color,
@@ -173,10 +180,13 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
         })
         .eq("id", projectId);
 
+      if (projectUpdateError) throw projectUpdateError;
+
       toast.success("Design atualizado com sucesso!");
-      loadBranding();
+      loadBranding(); // Reload to ensure all state is consistent
     } catch (error: any) {
-      toast.error("Erro ao salvar design");
+      console.error("Error saving design:", error); // Log the actual error
+      toast.error(error.message || "Erro ao salvar design");
     } finally {
       setSaving(false);
     }
@@ -194,29 +204,31 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
         container_color: "#1A1A1A",
         button_color: "#D4AF37",
         text_color: "#F5F5F5",
-        header_background_color: "#1E293B", // Reset new field
-        header_text_color: "#F1F5F9", // Reset new field
-        card_text_color: "#F1F5F9", // Reset new field
-        muted_text_color: "#A0A0A0", // Reset new field
+        header_background_color: "#1E293B",
+        header_text_color: "#F1F5F9",
+        card_text_color: "#F1F5F9",
+        muted_text_color: "#A0A0A0",
       };
 
-      const { error } = await sb
+      // Use upsert for project_branding
+      const { error: brandingError } = await sb
         .from("project_branding")
-        .update({ 
+        .upsert({ 
+          project_id: projectId, // Ensure project_id is included
           ...defaultColors, 
           dark_mode: false,
           updated_at: new Date().toISOString()
-        })
-        .eq("project_id", projectId);
+        }, { onConflict: 'project_id' });
 
-      if (error) throw error;
+      if (brandingError) throw brandingError;
 
       setColors(defaultColors);
       setDarkMode(false);
       toast.success("Design restaurado para o padrão!");
       loadBranding();
     } catch (error: any) {
-      toast.error("Erro ao restaurar design");
+      console.error("Error resetting design:", error); // Log the actual error
+      toast.error(error.message || "Erro ao restaurar design");
     } finally {
       setSaving(false);
     }
