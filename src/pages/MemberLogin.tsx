@@ -107,21 +107,27 @@ const MemberLogin = () => {
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { error } = await sb.from("projects").insert([{
+      const { data: newProjectData, error } = await sb.from("projects").insert([{
         name: newProject.name,
         description: newProject.description,
         owner_id: "test-user", // Usar um ID fixo para teste
-      }]);
+      }]).select().single();
+
       if (error) throw error;
+      
       toast.success("Projeto criado com sucesso!");
       setCreateDialogOpen(false);
       setNewProject({
         name: "",
         description: ""
       });
-      loadProject(); // Recarregar projetos
+      
+      // Redirecionar para o novo projeto
+      if (newProjectData) {
+        navigate(`/member/${newProjectData.id}`);
+      }
     } catch (error: any) {
-      toast.error("Erro ao criar projeto");
+      toast.error("Erro ao criar projeto: " + error.message);
     }
   };
 
@@ -251,7 +257,7 @@ const MemberLogin = () => {
                     </DialogHeader>
                     <form onSubmit={handleCreateProject} className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="name">Nome do Projeto</Label>
+                        <Label htmlFor="name">Nome do Projulo</Label>
                         <Input id="name" value={newProject.name} onChange={e => setNewProject({
                           ...newProject,
                           name: e.target.value
