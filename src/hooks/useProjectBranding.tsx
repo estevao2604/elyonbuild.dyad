@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { sb } from "@/integrations/supabase/sb";
 import { toast } from "sonner";
+import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
 interface Branding {
-  id?: string;
+  id?: string; // Keep id as optional for initial state, but expect it from DB
   custom_logo_url: string | null;
   primary_color: string;
   secondary_color: string;
@@ -64,33 +65,53 @@ export function useProjectBranding(projectId: string) {
     if (!projectId) return;
     setLoading(true);
     try {
+      let currentBrandingData: Branding | null = null;
+
+      // First, try to fetch existing branding
       const { data, error } = await sb
         .from("project_branding")
         .select("*")
         .eq("project_id", projectId)
         .maybeSingle();
 
-      if (error && error.code !== "PGRST116") throw error; // PGRST116 means no rows found
+      if (error && error.code !== "PGRST116") { // PGRST116 means no rows found
+        console.error("Error fetching branding (not PGRST116):", error);
+        toast.error("Erro ao carregar configurações de design.");
+        // If there's a real error, we can't proceed reliably, so we'll just set default and exit.
+        setBranding({ ...defaultBranding, project_id: projectId });
+        applyBrandingStyles({ ...defaultBranding, project_id: projectId });
+        setLoading(false);
+        return;
+      }
 
-      let currentBranding = data || { ...defaultBranding, project_id: projectId };
+      currentBrandingData = data;
 
-      // If no branding exists, create default one
-      if (!data) {
+      // If no branding exists, create a default one
+      if (!currentBrandingData) {
         const { data: newBranding, error: createError } = await sb
           .from("project_branding")
           .insert([{ ...defaultBranding, project_id: projectId }])
           .select()
           .single();
-        if (createError) throw createError;
-        currentBranding = newBranding;
+        if (createError) {
+          console.error("Error creating default branding:", createError);
+          toast.error("Erro ao criar configurações de design padrão.");
+          // If creation fails, we still set a default, but without a DB-assigned ID
+          setBranding({ ...defaultBranding, project_id: projectId });
+          applyBrandingStyles({ ...defaultBranding, project_id: projectId });
+          setLoading(false);
+          return;
+        }
+        currentBrandingData = newBranding;
       }
       
-      setBranding(currentBranding);
-      applyBrandingStyles(currentBranding);
+      // If we reached here, currentBrandingData should have a valid branding object with an ID
+      setBranding(currentBrandingData);
+      applyBrandingStyles(currentBrandingData);
 
     } catch (error: any) {
-      console.error("Error loading branding:", error);
-      toast.error("Erro ao carregar configurações de design");
+      console.error("Unexpected error in loadBranding:", error);
+      toast.error("Erro inesperado ao carregar design.");
       setBranding({ ...defaultBranding, project_id: projectId }); // Fallback to default
       applyBrandingStyles({ ...defaultBranding, project_id: projectId });
     } finally {
@@ -105,10 +126,25 @@ export function useProjectBranding(projectId: string) {
   const saveBranding = useCallback(async (newBranding: Partial<Branding>) => {
     if (!projectId) return;
     try {
-      const updatedBranding = { ...branding, ...newBranding, updated_at: new Date().toISOString() };
+      const payload = {
+        ...branding, // Start with current branding state (includes id if present)
+        ...newBranding, // Overlay new changes
+        project_id: projectId, // Ensure project_id is always in the payload
+        updated_at: new Date().toISOString(),
+      };
+
+      // If branding.id is undefined, it means we are either inserting for the first time
+      // or the loadBranding failed to get an ID.
+      // In either case, upsert with onConflict: 'project_id' should handle it.
+      // We should NOT explicitly pass 'id: undefined' to upsert.
+      const upsertObject: Partial<Branding> = { ...payload };
+      if (!branding?.id) {
+        delete upsertObject.id; // Ensure 'id' is not passed if it's not from the DB
+      }
+
       const { data, error } = await sb
         .from("project_branding")
-        .upsert({ ...updatedBranding, project_id: projectId }, { onConflict: 'project_id' })
+        .upsert(upsertObject as TablesInsert<'project_branding'> | TablesUpdate<'project_branding'>, { onConflict: 'project_id' })
         .select()
         .single();
 
