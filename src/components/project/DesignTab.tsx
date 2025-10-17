@@ -15,6 +15,7 @@ interface Branding {
   secondary_color: string;
   accent_color: string;
   hero_banner_url: string | null;
+  product_logo_url: string | null;
 }
 
 interface DesignTabProps {
@@ -87,16 +88,17 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
     try {
       setUploading(true);
       const fileExt = file.name.split(".").pop();
-      const fileName = `${projectId}-${type}-${Math.random()}.${fileExt}`;
+      const fileName = `${projectId}-${type}-${Date.now()}.${fileExt}`;
       const filePath = `branding/${fileName}`;
 
+      // Use the correct storage bucket
       const { error: uploadError } = await supabase.storage
-        .from("avatars")
+        .from("project-files") // Changed from "avatars" to "project-files"
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+      const { data } = supabase.storage.from("project-files").getPublicUrl(filePath);
 
       let updateData: any = {};
       if (type === "logo") {
@@ -125,7 +127,8 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
       toast.success(`${type === "logo" ? "Logo" : type === "banner" ? "Banner" : "Logo do Produto"} atualizado com sucesso!`);
       loadBranding();
     } catch (error: any) {
-      toast.error("Erro ao fazer upload");
+      console.error("Upload error:", error);
+      toast.error("Erro ao fazer upload: " + error.message);
     } finally {
       setUploading(false);
     }

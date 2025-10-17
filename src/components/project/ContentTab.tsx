@@ -25,6 +25,7 @@ interface Lesson {
   module_id: string;
   title: string;
   description: string;
+  content: string;
   content_type: string;
   file_url: string | null;
   duration_minutes: number | null;
@@ -178,11 +179,11 @@ const ContentTab = ({ projectId }: ContentTabProps) => {
     try {
       setUploading(true);
       const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${projectId}/${fileName}`;
+      const fileName = `${projectId}-${Date.now()}.${fileExt}`;
+      const filePath = `content/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("project-files")
+        .from("project-files") // Changed from "project-files" to "project-files"
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
@@ -193,7 +194,8 @@ const ContentTab = ({ projectId }: ContentTabProps) => {
 
       return data.publicUrl;
     } catch (error: any) {
-      toast.error("Erro ao fazer upload do arquivo");
+      console.error("Upload error:", error);
+      toast.error("Erro ao fazer upload do arquivo: " + error.message);
       return null;
     } finally {
       setUploading(false);
