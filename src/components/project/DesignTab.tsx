@@ -14,7 +14,6 @@ interface Branding {
   primary_color: string;
   secondary_color: string;
   accent_color: string;
-  hero_banner_url: string | null;
   product_logo_url: string | null;
 }
 
@@ -84,7 +83,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
     }
   };
 
-  const handleFileUpload = async (file: File, type: "logo" | "banner" | "product-logo") => {
+  const handleFileUpload = async (file: File, type: "logo" | "product-logo") => {
     try {
       setUploading(true);
       const fileExt = file.name.split(".").pop();
@@ -93,7 +92,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
 
       // Use the correct storage bucket
       const { error: uploadError } = await supabase.storage
-        .from("project-files") // Changed from "avatars" to "project-files"
+        .from("project-files")
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
@@ -103,8 +102,6 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
       let updateData: any = {};
       if (type === "logo") {
         updateData.custom_logo_url = data.publicUrl;
-      } else if (type === "banner") {
-        updateData.hero_banner_url = data.publicUrl;
       } else if (type === "product-logo") {
         updateData.product_logo_url = data.publicUrl;
       }
@@ -124,7 +121,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
           .eq("id", projectId);
       }
 
-      toast.success(`${type === "logo" ? "Logo" : type === "banner" ? "Banner" : "Logo do Produto"} atualizado com sucesso!`);
+      toast.success(`${type === "logo" ? "Logo" : "Logo do Produto"} atualizado com sucesso!`);
       loadBranding();
     } catch (error: any) {
       console.error("Upload error:", error);
@@ -254,52 +251,6 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) handleFileUpload(file, "product-logo");
-                  }}
-                  className="hidden"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-card border-border/50">
-            <CardHeader>
-              <CardTitle>Banner Hero</CardTitle>
-              <CardDescription>
-                Imagem de fundo da página inicial (recomendado: 1920x1080px)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {branding?.hero_banner_url && (
-                <div className="relative aspect-video rounded-lg overflow-hidden bg-muted/50">
-                  <img
-                    src={branding.hero_banner_url}
-                    alt="Banner"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-              <div>
-                <Label htmlFor="banner-upload" className="cursor-pointer">
-                  <div className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-border rounded-lg hover:border-primary transition-smooth">
-                    {uploading ? (
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                    ) : (
-                      <>
-                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">
-                          Clique para fazer upload do banner
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </Label>
-                <Input
-                  id="banner-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file, "banner");
                   }}
                   className="hidden"
                 />
