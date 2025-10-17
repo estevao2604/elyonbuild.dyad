@@ -7,110 +7,39 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Palette, Upload, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
-
-interface Branding {
-  id: string;
-  custom_logo_url: string | null;
-  primary_color: string;
-  secondary_color: string;
-  accent_color: string;
-  background_color: string | null;
-  container_color: string | null;
-  button_color: string | null;
-  text_color: string | null;
-  dark_mode: boolean | null;
-  header_background_color: string | null; // New
-  header_text_color: string | null; // New
-  card_text_color: string | null; // New
-  muted_text_color: string | null; // New
-}
+import { useProjectBranding } from "@/hooks/useProjectBranding";
 
 interface DesignTabProps {
   projectId: string;
 }
 
 const DesignTab = ({ projectId }: DesignTabProps) => {
-  const [branding, setBranding] = useState<Branding | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const { branding, loading, saveBranding, defaultBranding } = useProjectBranding(projectId);
+  const [localColors, setLocalColors] = useState(defaultBranding);
+  const [localDarkMode, setLocalDarkMode] = useState(false);
   const [uploading, setUploading] = useState(false);
-
-  const [colors, setColors] = useState({
-    primary_color: "#D4AF37",
-    secondary_color: "#FFD700",
-    accent_color: "#F59E0B",
-    background_color: "#0A0A0A",
-    container_color: "#1A1A1A",
-    button_color: "#D4AF37",
-    text_color: "#F5F5F5",
-    header_background_color: "#1E293B", // Default for new field
-    header_text_color: "#F1F5F9", // Default for new field
-    card_text_color: "#F1F5F9", // Default for new field
-    muted_text_color: "#A0A0A0", // Default for new field
-  });
-
-  const [darkMode, setDarkMode] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadBranding();
-  }, [projectId]);
-
-  const loadBranding = async () => {
-    try {
-      const { data, error } = await sb
-        .from("project_branding")
-        .select("*")
-        .eq("project_id", projectId)
-        .maybeSingle();
-
-      if (error && error.code !== "PGRST116") throw error;
-
-      if (data) {
-        setBranding(data);
-        setColors({
-          primary_color: data.primary_color,
-          secondary_color: data.secondary_color,
-          accent_color: data.accent_color,
-          background_color: data.background_color || "#0A0A0A",
-          container_color: data.container_color || "#1A1A1A",
-          button_color: data.button_color || "#D4AF37",
-          text_color: data.text_color || "#F5F5F5",
-          header_background_color: data.header_background_color || "#1E293B", // Load new field
-          header_text_color: data.header_text_color || "#F1F5F9", // Load new field
-          card_text_color: data.card_text_color || "#F1F5F9", // Load new field
-          muted_text_color: data.muted_text_color || "#A0A0A0", // Load new field
-        });
-        setDarkMode(data.dark_mode || false);
-      } else {
-        // Create default branding with new fields
-        const { data: newBranding, error: createError } = await sb
-          .from("project_branding")
-          .insert([{ 
-            project_id: projectId,
-            primary_color: colors.primary_color,
-            secondary_color: colors.secondary_color,
-            accent_color: colors.accent_color,
-            background_color: colors.background_color,
-            container_color: colors.container_color,
-            button_color: colors.button_color,
-            text_color: colors.text_color,
-            header_background_color: colors.header_background_color, // Set default for new field
-            header_text_color: colors.header_text_color, // Set default for new field
-            card_text_color: colors.card_text_color, // Set default for new field
-            muted_text_color: colors.muted_text_color, // Set default for new field
-          }])
-          .select()
-          .single();
-
-        if (createError) throw createError;
-        setBranding(newBranding);
-      }
-    } catch (error: any) {
-      toast.error("Erro ao carregar configurações de design");
-    } finally {
-      setLoading(false);
+    if (branding) {
+      setLocalColors({
+        primary_color: branding.primary_color,
+        secondary_color: branding.secondary_color,
+        accent_color: branding.accent_color,
+        background_color: branding.background_color || defaultBranding.background_color,
+        container_color: branding.container_color || defaultBranding.container_color,
+        button_color: branding.button_color || defaultBranding.button_color,
+        text_color: branding.text_color || defaultBranding.text_color,
+        header_background_color: branding.header_background_color || defaultBranding.header_background_color,
+        header_text_color: branding.header_text_color || defaultBranding.header_text_color,
+        card_text_color: branding.card_text_color || defaultBranding.card_text_color,
+        muted_text_color: branding.muted_text_color || defaultBranding.muted_text_color,
+        custom_logo_url: branding.custom_logo_url, // Keep logo URL in sync
+        dark_mode: branding.dark_mode, // Keep dark mode in sync
+      });
+      setLocalDarkMode(branding.dark_mode || false);
     }
-  };
+  }, [branding, defaultBranding]);
 
   const handleFileUpload = async (file: File) => {
     try {
@@ -127,20 +56,15 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
 
       const { data } = supabase.storage.from("project-files").getPublicUrl(filePath);
 
-      const { error: updateError } = await sb
-        .from("project_branding")
-        .update({ custom_logo_url: data.publicUrl })
-        .eq("project_id", projectId);
+      await saveBranding({ custom_logo_url: data.publicUrl });
 
-      if (updateError) throw updateError;
-
+      // Also update project's logo_url for consistency
       await sb
         .from("projects")
         .update({ logo_url: data.publicUrl })
         .eq("id", projectId);
 
       toast.success("Logo do Produto atualizado com sucesso!");
-      loadBranding();
     } catch (error: any) {
       console.error("Upload error:", error);
       toast.error("Erro ao fazer upload: " + error.message);
@@ -150,88 +74,15 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
   };
 
   const handleSaveColors = async () => {
-    try {
-      setSaving(true);
-
-      // Use upsert for project_branding to create if not exists, update otherwise
-      const { data: updatedBranding, error: brandingError } = await sb
-        .from("project_branding")
-        .upsert({ 
-          project_id: projectId, // Ensure project_id is always included for upsert
-          ...colors, 
-          dark_mode: darkMode,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'project_id' }) // Conflict on project_id to update existing row
-        .select()
-        .single();
-
-      if (brandingError) throw brandingError;
-
-      // Update the local branding state with the new data
-      setBranding(updatedBranding);
-
-      // Update project's primary and secondary colors
-      const { error: projectUpdateError } = await sb
-        .from("projects")
-        .update({
-          primary_color: colors.primary_color,
-          secondary_color: colors.secondary_color,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", projectId);
-
-      if (projectUpdateError) throw projectUpdateError;
-
-      toast.success("Design atualizado com sucesso!");
-      loadBranding(); // Reload to ensure all state is consistent
-    } catch (error: any) {
-      console.error("Error saving design:", error); // Log the actual error
-      toast.error(error.message || "Erro ao salvar design");
-    } finally {
-      setSaving(false);
-    }
+    setSaving(true);
+    await saveBranding({ ...localColors, dark_mode: localDarkMode });
+    setSaving(false);
   };
 
   const handleResetDesign = async () => {
-    try {
-      setSaving(true);
-
-      const defaultColors = {
-        primary_color: "#D4AF37",
-        secondary_color: "#FFD700",
-        accent_color: "#F59E0B",
-        background_color: "#0A0A0A",
-        container_color: "#1A1A1A",
-        button_color: "#D4AF37",
-        text_color: "#F5F5F5",
-        header_background_color: "#1E293B",
-        header_text_color: "#F1F5F9",
-        card_text_color: "#F1F5F9",
-        muted_text_color: "#A0A0A0",
-      };
-
-      // Use upsert for project_branding
-      const { error: brandingError } = await sb
-        .from("project_branding")
-        .upsert({ 
-          project_id: projectId, // Ensure project_id is included
-          ...defaultColors, 
-          dark_mode: false,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'project_id' });
-
-      if (brandingError) throw brandingError;
-
-      setColors(defaultColors);
-      setDarkMode(false);
-      toast.success("Design restaurado para o padrão!");
-      loadBranding();
-    } catch (error: any) {
-      console.error("Error resetting design:", error); // Log the actual error
-      toast.error(error.message || "Erro ao restaurar design");
-    } finally {
-      setSaving(false);
-    }
+    setSaving(true);
+    await saveBranding({ ...defaultBranding, custom_logo_url: null, dark_mode: false });
+    setSaving(false);
   };
 
   if (loading) {
@@ -262,10 +113,10 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {branding?.custom_logo_url && (
+              {localColors.custom_logo_url && (
                 <div className="flex items-center justify-center p-6 bg-muted/50 rounded-lg">
                   <img
-                    src={branding.custom_logo_url}
+                    src={localColors.custom_logo_url}
                     alt="Logo do Produto"
                     className="max-h-32 object-contain"
                   />
@@ -318,17 +169,17 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                     <Input
                       id="primary-color"
                       type="color"
-                      value={colors.primary_color}
+                      value={localColors.primary_color}
                       onChange={(e) =>
-                        setColors({ ...colors, primary_color: e.target.value })
+                        setLocalColors({ ...localColors, primary_color: e.target.value })
                       }
                       className="h-12 w-20 cursor-pointer"
                     />
                     <Input
                       type="text"
-                      value={colors.primary_color}
+                      value={localColors.primary_color}
                       onChange={(e) =>
-                        setColors({ ...colors, primary_color: e.target.value })
+                        setLocalColors({ ...localColors, primary_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
                       placeholder="#D4AF37"
@@ -345,17 +196,17 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                     <Input
                       id="secondary-color"
                       type="color"
-                      value={colors.secondary_color}
+                      value={localColors.secondary_color}
                       onChange={(e) =>
-                        setColors({ ...colors, secondary_color: e.target.value })
+                        setLocalColors({ ...localColors, secondary_color: e.target.value })
                       }
                       className="h-12 w-20 cursor-pointer"
                     />
                     <Input
                       type="text"
-                      value={colors.secondary_color}
+                      value={localColors.secondary_color}
                       onChange={(e) =>
-                        setColors({ ...colors, secondary_color: e.target.value })
+                        setLocalColors({ ...localColors, secondary_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
                       placeholder="#FFD700"
@@ -372,17 +223,17 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                     <Input
                       id="accent-color"
                       type="color"
-                      value={colors.accent_color}
+                      value={localColors.accent_color}
                       onChange={(e) =>
-                        setColors({ ...colors, accent_color: e.target.value })
+                        setLocalColors({ ...localColors, accent_color: e.target.value })
                       }
                       className="h-12 w-20 cursor-pointer"
                     />
                     <Input
                       type="text"
-                      value={colors.accent_color}
+                      value={localColors.accent_color}
                       onChange={(e) =>
-                        setColors({ ...colors, accent_color: e.target.value })
+                        setLocalColors({ ...localColors, accent_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
                       placeholder="#F59E0B"
@@ -399,17 +250,17 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                     <Input
                       id="background-color"
                       type="color"
-                      value={colors.background_color}
+                      value={localColors.background_color || defaultBranding.background_color}
                       onChange={(e) =>
-                        setColors({ ...colors, background_color: e.target.value })
+                        setLocalColors({ ...localColors, background_color: e.target.value })
                       }
                       className="h-12 w-20 cursor-pointer"
                     />
                     <Input
                       type="text"
-                      value={colors.background_color}
+                      value={localColors.background_color || defaultBranding.background_color}
                       onChange={(e) =>
-                        setColors({ ...colors, background_color: e.target.value })
+                        setLocalColors({ ...localColors, background_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
                       placeholder="#0A0A0A"
@@ -426,17 +277,17 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                     <Input
                       id="container-color"
                       type="color"
-                      value={colors.container_color}
+                      value={localColors.container_color || defaultBranding.container_color}
                       onChange={(e) =>
-                        setColors({ ...colors, container_color: e.target.value })
+                        setLocalColors({ ...localColors, container_color: e.target.value })
                       }
                       className="h-12 w-20 cursor-pointer"
                     />
                     <Input
                       type="text"
-                      value={colors.container_color}
+                      value={localColors.container_color || defaultBranding.container_color}
                       onChange={(e) =>
-                        setColors({ ...colors, container_color: e.target.value })
+                        setLocalColors({ ...localColors, container_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
                       placeholder="#1A1A1A"
@@ -453,17 +304,17 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                     <Input
                       id="button-color"
                       type="color"
-                      value={colors.button_color}
+                      value={localColors.button_color || defaultBranding.button_color}
                       onChange={(e) =>
-                        setColors({ ...colors, button_color: e.target.value })
+                        setLocalColors({ ...localColors, button_color: e.target.value })
                       }
                       className="h-12 w-20 cursor-pointer"
                     />
                     <Input
                       type="text"
-                      value={colors.button_color}
+                      value={localColors.button_color || defaultBranding.button_color}
                       onChange={(e) =>
-                        setColors({ ...colors, button_color: e.target.value })
+                        setLocalColors({ ...localColors, button_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
                       placeholder="#D4AF37"
@@ -480,17 +331,17 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                     <Input
                       id="text-color"
                       type="color"
-                      value={colors.text_color}
+                      value={localColors.text_color || defaultBranding.text_color}
                       onChange={(e) =>
-                        setColors({ ...colors, text_color: e.target.value })
+                        setLocalColors({ ...localColors, text_color: e.target.value })
                       }
                       className="h-12 w-20 cursor-pointer"
                     />
                     <Input
                       type="text"
-                      value={colors.text_color}
+                      value={localColors.text_color || defaultBranding.text_color}
                       onChange={(e) =>
-                        setColors({ ...colors, text_color: e.target.value })
+                        setLocalColors({ ...localColors, text_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
                       placeholder="#F5F5F5"
@@ -508,17 +359,17 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                     <Input
                       id="header-background-color"
                       type="color"
-                      value={colors.header_background_color}
+                      value={localColors.header_background_color || defaultBranding.header_background_color}
                       onChange={(e) =>
-                        setColors({ ...colors, header_background_color: e.target.value })
+                        setLocalColors({ ...localColors, header_background_color: e.target.value })
                       }
                       className="h-12 w-20 cursor-pointer"
                     />
                     <Input
                       type="text"
-                      value={colors.header_background_color}
+                      value={localColors.header_background_color || defaultBranding.header_background_color}
                       onChange={(e) =>
-                        setColors({ ...colors, header_background_color: e.target.value })
+                        setLocalColors({ ...localColors, header_background_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
                       placeholder="#1E293B"
@@ -535,17 +386,17 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                     <Input
                       id="header-text-color"
                       type="color"
-                      value={colors.header_text_color}
+                      value={localColors.header_text_color || defaultBranding.header_text_color}
                       onChange={(e) =>
-                        setColors({ ...colors, header_text_color: e.target.value })
+                        setLocalColors({ ...localColors, header_text_color: e.target.value })
                       }
                       className="h-12 w-20 cursor-pointer"
                     />
                     <Input
                       type="text"
-                      value={colors.header_text_color}
+                      value={localColors.header_text_color || defaultBranding.header_text_color}
                       onChange={(e) =>
-                        setColors({ ...colors, header_text_color: e.target.value })
+                        setLocalColors({ ...localColors, header_text_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
                       placeholder="#F1F5F9"
@@ -562,17 +413,17 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                     <Input
                       id="card-text-color"
                       type="color"
-                      value={colors.card_text_color}
+                      value={localColors.card_text_color || defaultBranding.card_text_color}
                       onChange={(e) =>
-                        setColors({ ...colors, card_text_color: e.target.value })
+                        setLocalColors({ ...localColors, card_text_color: e.target.value })
                       }
                       className="h-12 w-20 cursor-pointer"
                     />
                     <Input
                       type="text"
-                      value={colors.card_text_color}
+                      value={localColors.card_text_color || defaultBranding.card_text_color}
                       onChange={(e) =>
-                        setColors({ ...colors, card_text_color: e.target.value })
+                        setLocalColors({ ...localColors, card_text_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
                       placeholder="#F1F5F9"
@@ -589,17 +440,17 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                     <Input
                       id="muted-text-color"
                       type="color"
-                      value={colors.muted_text_color}
+                      value={localColors.muted_text_color || defaultBranding.muted_text_color}
                       onChange={(e) =>
-                        setColors({ ...colors, muted_text_color: e.target.value })
+                        setLocalColors({ ...localColors, muted_text_color: e.target.value })
                       }
                       className="h-12 w-20 cursor-pointer"
                     />
                     <Input
                       type="text"
-                      value={colors.muted_text_color}
+                      value={localColors.muted_text_color || defaultBranding.muted_text_color}
                       onChange={(e) =>
-                        setColors({ ...colors, muted_text_color: e.target.value })
+                        setLocalColors({ ...localColors, muted_text_color: e.target.value })
                       }
                       className="font-mono bg-muted/50"
                       placeholder="#A0A0A0"
@@ -623,8 +474,8 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                     <input
                       id="dark-mode"
                       type="checkbox"
-                      checked={darkMode}
-                      onChange={(e) => setDarkMode(e.target.checked)}
+                      checked={localDarkMode}
+                      onChange={(e) => setLocalDarkMode(e.target.checked)}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
@@ -632,10 +483,10 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                 </div>
 
                 <h4 className="font-semibold">Pré-visualização</h4>
-                <div className="space-y-3 p-4 rounded-lg" style={{ backgroundColor: colors.background_color }}>
+                <div className={`space-y-3 p-4 rounded-lg ${localDarkMode ? "member-dark" : ""}`} style={{ backgroundColor: localColors.background_color }}>
                   <div 
                     className="h-14 rounded-lg flex items-center justify-between px-4"
-                    style={{ backgroundColor: colors.header_background_color, color: colors.header_text_color }}
+                    style={{ backgroundColor: localColors.header_background_color, color: localColors.header_text_color }}
                   >
                     <span className="font-bold text-lg">Cabeçalho</span>
                     <Palette className="h-6 w-6" />
@@ -643,22 +494,22 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
                   <div
                     className="p-4 rounded-lg space-y-2"
                     style={{ 
-                      backgroundColor: colors.container_color,
-                      color: colors.card_text_color
+                      backgroundColor: localColors.container_color,
+                      color: localColors.card_text_color
                     }}
                   >
                     <p className="font-medium text-lg">Título do Card</p>
-                    <p className="text-sm" style={{ color: colors.muted_text_color }}>
+                    <p className="text-sm" style={{ color: localColors.muted_text_color }}>
                       Exemplo de descrição ou texto secundário no card.
                     </p>
                     <Button
                       className="w-full h-10"
-                      style={{ backgroundColor: colors.button_color, color: colors.text_color }}
+                      style={{ backgroundColor: localColors.button_color, color: localColors.text_color }}
                     >
                       Botão de Ação
                     </Button>
                   </div>
-                  <p className="text-sm text-center" style={{ color: colors.text_color }}>
+                  <p className="text-sm text-center" style={{ color: localColors.text_color }}>
                     Texto geral da área de membros.
                   </p>
                 </div>
@@ -667,18 +518,18 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
               <div className="flex gap-3">
                 <Button
                   onClick={handleSaveColors}
-                  disabled={saving}
+                  disabled={saving || uploading}
                   className="flex-1 bg-gradient-primary hover:opacity-90 transition-smooth"
                 >
                   {saving ? "Salvando..." : "Salvar Alterações"}
                 </Button>
                 <Button
                   onClick={handleResetDesign}
-                  disabled={saving}
+                  disabled={saving || uploading}
                   variant="outline"
                   className="flex-1"
                 >
-                  Excluir Alterações
+                  Restaurar Padrão
                 </Button>
               </div>
             </CardContent>

@@ -5,10 +5,11 @@ import { sb } from "@/integrations/supabase/sb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import bcrypt from "bcryptjs";
 import { Eye, EyeOff, LogIn } from "lucide-react";
+import { useProjectBranding } from "@/hooks/useProjectBranding";
 
 const MemberLogin = () => {
   const { projectId } = useParams();
@@ -18,13 +19,13 @@ const MemberLogin = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [project, setProject] = useState<any>(null);
-  const [branding, setBranding] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [allProjects, setAllProjects] = useState<any[]>([]);
 
+  const { branding, loading: loadingBranding } = useProjectBranding(projectId!);
+
   useEffect(() => {
     if (projectId) {
-      console.log("Tentando carregar projeto com ID:", projectId);
       loadProject();
     } else {
       setError("ID do projeto não fornecido");
@@ -41,11 +42,10 @@ const MemberLogin = () => {
       setLoading(true);
       setError(null);
 
-      // Carregar todos os projetos primeiro para ver se o ID existe
       const { data: projectsData, error: projectsError } = await sb
         .from("projects")
         .select("*")
-        .limit(20); // Limite para evitar carregar muitos projetos desnecessariamente
+        .limit(20);
 
       if (projectsError) {
         console.error("Erro ao carregar projetos:", projectsError);
@@ -55,7 +55,6 @@ const MemberLogin = () => {
 
       setAllProjects(projectsData || []);
 
-      // Verificar se o projeto existe
       const projectExists = projectsData?.some(p => p.id === projectId);
       
       if (!projectExists) {
@@ -65,7 +64,6 @@ const MemberLogin = () => {
         return;
       }
 
-      // Carregar projeto específico
       const { data: projectData, error: projectError } = await sb
         .from("projects")
         .select("*")
@@ -78,17 +76,7 @@ const MemberLogin = () => {
         return;
       }
 
-      console.log("Projeto encontrado:", projectData);
       setProject(projectData);
-
-      // Carregar branding
-      const { data: brandingData } = await sb
-        .from("project_branding")
-        .select("*")
-        .eq("project_id", projectId)
-        .maybeSingle();
-
-      setBranding(brandingData);
     } catch (error) {
       console.error("Error loading project:", error);
       setError("Erro ao carregar informações do projeto");
@@ -102,7 +90,6 @@ const MemberLogin = () => {
     setLoading(true);
 
     try {
-      // Buscar membro pelo email e projeto
       const { data: member, error } = await sb
         .from("project_members")
         .select("*")
@@ -116,14 +103,12 @@ const MemberLogin = () => {
         return;
       }
 
-      // Verificar se está ativo
       if (!member.is_active) {
         toast.error("Sua conta está inativa. Entre em contato com o administrador.");
         setLoading(false);
         return;
       }
 
-      // Verificar senha
       const passwordMatch = await bcrypt.compare(password, member.password_hash);
 
       if (!passwordMatch) {
@@ -132,7 +117,6 @@ const MemberLogin = () => {
         return;
       }
 
-      // Salvar dados do membro na sessão
       sessionStorage.setItem("member_session", JSON.stringify({
         id: member.id,
         email: member.email,
@@ -151,21 +135,14 @@ const MemberLogin = () => {
     }
   };
 
-  // Usar branding ou dados do projeto como fallback
-  const brandingData = branding || project?.project_branding?.[0];
-  const backgroundColor = brandingData?.background_color || "#0F172A";
-  const containerColor = brandingData?.container_color || "#1E293B";
-  const buttonColor = brandingData?.button_color || "#6366F1";
-  const textColor = brandingData?.text_color || "#F1F5F9";
-  const logoUrl = brandingData?.custom_logo_url || project?.logo_url;
-  const darkMode = brandingData?.dark_mode || false;
+  const logoUrl = branding?.custom_logo_url || project?.logo_url;
 
-  if (loading) {
+  if (loading || loadingBranding) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor }}>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--member-background-color)]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Carregando...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--member-primary-color)] mx-auto mb-4"></div>
+          <p className="text-[var(--member-text-color)]">Carregando...</p>
         </div>
       </div>
     );
@@ -173,16 +150,16 @@ const MemberLogin = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor }}>
-        <Card className="max-w-md mx-4">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--member-background-color)]">
+        <Card className="max-w-md mx-4 bg-[var(--member-container-color)] text-[var(--member-text-color)]">
           <CardContent className="p-6 text-center">
             <h2 className="text-xl font-bold mb-2">Erro: Projeto Não Encontrado</h2>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-[var(--member-muted-text-color)] mb-4">
               O ID do projeto fornecido na URL (`{projectId}`) não corresponde a nenhum projeto existente.
               Por favor, verifique se o ID está correto ou se o projeto foi excluído.
             </p>
             {allProjects.length > 0 && (
-              <div className="text-xs text-muted-foreground mb-4">
+              <div className="text-xs text-[var(--member-muted-text-color)] mb-4">
                 <p>Projetos disponíveis (primeiros 5):</p>
                 <ul className="text-left mt-1 list-disc list-inside">
                   {allProjects.slice(0, 5).map(p => (
@@ -195,13 +172,13 @@ const MemberLogin = () => {
               </div>
             )}
             <div className="flex flex-col gap-2">
-              <Button onClick={() => navigate("/dashboard")} className="w-full">
+              <Button onClick={() => navigate("/dashboard")} className="w-full bg-[var(--member-button-color)] text-white">
                 Ir para o Dashboard (para criar ou ver projetos)
               </Button>
               <Button 
                 onClick={() => navigate("/")} 
                 variant="outline"
-                className="w-full"
+                className="w-full border-[var(--member-primary-color)] text-[var(--member-primary-color)] hover:bg-[var(--member-primary-color)] hover:text-white"
               >
                 Voltar para o Início
               </Button>
@@ -214,8 +191,8 @@ const MemberLogin = () => {
 
   return (
     <div 
-      className={`min-h-screen flex items-center justify-center relative overflow-hidden ${darkMode ? "dark" : ""}`}
-      style={{ backgroundColor }}
+      className={`min-h-screen flex items-center justify-center relative overflow-hidden ${branding?.dark_mode ? "member-dark" : ""}`}
+      style={{ backgroundColor: 'var(--member-background-color)' }}
     >
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-5">
@@ -235,7 +212,7 @@ const MemberLogin = () => {
               className="h-20 w-20 md:h-24 md:w-24 object-contain drop-shadow-2xl transition-all duration-300 group-hover:scale-110"
               style={{ filter: 'drop-shadow(0 10px 25px rgba(0,0,0,0.3))' }}
             />
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[var(--member-primary-color)]/20 to-[var(--member-secondary-color)]/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           </div>
         )}
       </div>
@@ -243,10 +220,10 @@ const MemberLogin = () => {
       {/* Main Content */}
       <div className="w-full max-w-md relative z-10 mx-4">
         <div className="text-center mb-8 space-y-3">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ color: textColor }}>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[var(--member-text-color)]">
             {project?.name ? `Entrar na ${project.name}` : "Área de Membros"}
           </h1>
-          <p className="text-base md:text-lg" style={{ color: `${textColor}CC` }}>
+          <p className="text-base md:text-lg text-[var(--member-text-color)] opacity-80">
             Acesse sua plataforma de infoprodutos
           </p>
         </div>
@@ -254,7 +231,7 @@ const MemberLogin = () => {
         <div className="space-y-6">
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium" style={{ color: textColor }}>
+              <Label htmlFor="email" className="text-sm font-medium text-[var(--member-text-color)]">
                 Email
               </Label>
               <Input
@@ -264,18 +241,12 @@ const MemberLogin = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com"
                 required
-                className="h-12 border-opacity-40 text-lg"
-                style={{ 
-                  backgroundColor: containerColor,
-                  borderColor: `${textColor}40`,
-                  color: textColor,
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-                }}
+                className="h-12 border-opacity-40 text-lg bg-[var(--member-container-color)] text-[var(--member-text-color)] border-[var(--member-text-color)]/40 shadow-md"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium" style={{ color: textColor }}>
+              <Label htmlFor="password" className="text-sm font-medium text-[var(--member-text-color)]">
                 Senha
               </Label>
               <div className="relative">
@@ -286,19 +257,12 @@ const MemberLogin = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Sua senha"
                   required
-                  className="h-12 pr-12 border-opacity-40 text-lg"
-                  style={{ 
-                    backgroundColor: containerColor,
-                    borderColor: `${textColor}40`,
-                    color: textColor,
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-                  }}
+                  className="h-12 pr-12 border-opacity-40 text-lg bg-[var(--member-container-color)] text-[var(--member-text-color)] border-[var(--member-text-color)]/40 shadow-md"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-smooth"
-                  style={{ color: `${textColor}80` }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-smooth text-[var(--member-text-color)] opacity-50 hover:opacity-100"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -307,13 +271,8 @@ const MemberLogin = () => {
 
             <Button
               type="submit"
-              className="w-full h-14 text-lg font-bold tracking-wide transition-all duration-300 hover:scale-105 hover:shadow-xl"
+              className="w-full h-14 text-lg font-bold tracking-wide transition-all duration-300 hover:scale-105 hover:shadow-xl bg-[var(--member-button-color)] text-white shadow-[0_10px_25px_-5px_rgba(99,102,241,0.4)]"
               disabled={loading}
-              style={{ 
-                backgroundColor: buttonColor,
-                color: "white",
-                boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.4)'
-              }}
             >
               {loading ? (
                 <>
@@ -329,8 +288,8 @@ const MemberLogin = () => {
       </div>
 
       {/* Decorative Elements */}
-      <div className="absolute bottom-8 left-8 w-32 h-32 bg-primary/10 rounded-full blur-3xl opacity-50" />
-      <div className="absolute top-8 right-8 w-24 h-24 bg-secondary/10 rounded-full blur-3xl opacity-50" />
+      <div className="absolute bottom-8 left-8 w-32 h-32 bg-[var(--member-primary-color)]/10 rounded-full blur-3xl opacity-50" />
+      <div className="absolute top-8 right-8 w-24 h-24 bg-[var(--member-secondary-color)]/10 rounded-full blur-3xl opacity-50" />
     </div>
   );
 };

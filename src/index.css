@@ -101,3 +101,5 @@ All colors MUST be HSL.
   }
 }
 
+/* Importar estilos de branding da área de membros */
+@import "./styles/member-branding.css";

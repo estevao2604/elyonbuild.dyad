@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { LogOut, BookOpen, Video, FileText, Image as ImageIcon, CheckCircle, User, Moon, Sun, ArrowRight } from "lucide-react";
 import MemberProfile from "@/components/member/MemberProfile";
 import LessonComments from "@/components/member/LessonComments";
+import { useProjectBranding } from "@/hooks/useProjectBranding";
 
 interface Module {
   id: string;
@@ -44,11 +45,11 @@ const MemberArea = () => {
   const [modules, setModules] = useState<Module[]>([]);
   const [lessons, setLessons] = useState<{ [key: string]: Lesson[] }>({});
   const [progress, setProgress] = useState<LessonProgress[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingContent, setLoadingContent] = useState(true);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
-  const [darkMode, setDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState("modules");
-  const [branding, setBranding] = useState<any>(null);
+
+  const { branding, loading: loadingBranding, saveBranding } = useProjectBranding(projectId!);
 
   useEffect(() => {
     checkMemberSession();
@@ -60,65 +61,9 @@ const MemberArea = () => {
     }
   }, [member]);
 
-  const applyBrandingStyles = (brandingData: any) => {
-    const root = document.documentElement;
-    if (brandingData) {
-      root.style.setProperty('--member-background-color', brandingData.background_color || "#0F172A");
-      root.style.setProperty('--member-container-color', brandingData.container_color || "#1E293B");
-      root.style.setProperty('--member-text-color', brandingData.text_color || "#F1F5F9");
-      root.style.setProperty('--member-primary-color', brandingData.primary_color || "#6366F1");
-      root.style.setProperty('--member-secondary-color', brandingData.secondary_color || "#22D3EE");
-      root.style.setProperty('--member-accent-color', brandingData.accent_color || "#F59E0B");
-      root.style.setProperty('--member-button-color', brandingData.button_color || "#6366F1");
-      root.style.setProperty('--member-header-background-color', brandingData.header_background_color || "#1E293B");
-      root.style.setProperty('--member-header-text-color', brandingData.header_text_color || "#F1F5F9");
-      root.style.setProperty('--member-card-text-color', brandingData.card_text_color || "#F1F5F9");
-      root.style.setProperty('--member-muted-text-color', brandingData.muted_text_color || "#A0A0A0");
-
-      if (brandingData.dark_mode) {
-        setDarkMode(true);
-        root.classList.add("dark");
-      } else {
-        setDarkMode(false);
-        root.classList.remove("dark");
-      }
-    } else {
-      // Reset to default if no branding data
-      root.style.removeProperty('--member-background-color');
-      root.style.removeProperty('--member-container-color');
-      root.style.removeProperty('--member-text-color');
-      root.style.removeProperty('--member-primary-color');
-      root.style.removeProperty('--member-secondary-color');
-      root.style.removeProperty('--member-accent-color');
-      root.style.removeProperty('--member-button-color');
-      root.style.removeProperty('--member-header-background-color');
-      root.style.removeProperty('--member-header-text-color');
-      root.style.removeProperty('--member-card-text-color');
-      root.style.removeProperty('--member-muted-text-color');
-      root.classList.remove("dark");
-      setDarkMode(false);
-    }
-  };
-
   const toggleDarkMode = async () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
-    
-    const root = document.documentElement;
-    if (newMode) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-
-    try {
-      await sb
-        .from("project_branding")
-        .update({ dark_mode: newMode })
-        .eq("project_id", projectId);
-    } catch (error) {
-      console.error("Error saving dark mode:", error);
-    }
+    if (!branding) return;
+    await saveBranding({ dark_mode: !branding.dark_mode });
   };
 
   const checkMemberSession = async () => {
@@ -161,7 +106,7 @@ const MemberArea = () => {
 
   const loadData = async () => {
     try {
-      setLoading(true);
+      setLoadingContent(true);
 
       const { data: projectData, error: projectError } = await sb
         .from("projects")
@@ -176,19 +121,6 @@ const MemberArea = () => {
       }
 
       setProject(projectData);
-
-      const { data: brandingData, error: brandingError } = await sb
-        .from("project_branding")
-        .select("*")
-        .eq("project_id", projectId)
-        .maybeSingle();
-
-      if (brandingError) {
-        console.error("Error loading branding:", brandingError);
-      } else {
-        setBranding(brandingData);
-        applyBrandingStyles(brandingData); // Apply branding styles here
-      }
 
       await sb
         .from("project_members")
@@ -247,7 +179,7 @@ const MemberArea = () => {
       console.error("Error loading data:", error);
       toast.error("Erro ao carregar conteúdo");
     } finally {
-      setLoading(false);
+      setLoadingContent(false);
     }
   };
 
@@ -345,6 +277,7 @@ const MemberArea = () => {
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary hover:underline"
+            style={{ color: 'var(--member-primary-color)' }}
           >
             Baixar arquivo
           </a>
@@ -354,24 +287,20 @@ const MemberArea = () => {
 
   const logoUrl = branding?.custom_logo_url || project?.logo_url;
 
-  if (loading) {
+  if (loadingContent || loadingBranding) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--member-background-color, #0F172A)' }}>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--member-background-color)]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--member-primary-color)]"></div>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen ${darkMode ? "dark" : ""}`}>
-      <div className="min-h-screen transition-colors" style={{ backgroundColor: 'var(--member-background-color, #0F172A)' }}>
+    <div className={`min-h-screen`}>
+      <div className="min-h-screen transition-colors bg-[var(--member-background-color)] text-[var(--member-text-color)]">
         {/* Header */}
         <header 
-          className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50"
-          style={{ 
-            backgroundColor: 'var(--member-header-background-color, #1E293B)',
-            color: 'var(--member-header-text-color, #F1F5F9)'
-          }}
+          className="border-b border-border backdrop-blur-sm sticky top-0 z-50 bg-[var(--member-header-background-color)] text-[var(--member-header-text-color)]"
         >
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
@@ -383,7 +312,7 @@ const MemberArea = () => {
                     className="h-10 w-10 object-contain"
                   />
                 )}
-                <h1 className="text-xl font-bold hidden md:block" style={{ color: 'var(--member-header-text-color, #F1F5F9)' }}>{project?.name || "Área de Membros"}</h1>
+                <h1 className="text-xl font-bold hidden md:block text-[var(--member-header-text-color)]">{project?.name || "Área de Membros"}</h1>
               </div>
 
               <div className="flex items-center gap-4">
@@ -391,10 +320,9 @@ const MemberArea = () => {
                   variant="ghost"
                   size="icon"
                   onClick={toggleDarkMode}
-                  className="rounded-full"
-                  style={{ color: 'var(--member-header-text-color, #F1F5F9)' }}
+                  className="rounded-full text-[var(--member-header-text-color)]"
                 >
-                  {darkMode ? (
+                  {branding?.dark_mode ? (
                     <Sun className="h-5 w-5" />
                   ) : (
                     <Moon className="h-5 w-5" />
@@ -405,12 +333,12 @@ const MemberArea = () => {
                   onClick={() => setActiveTab("profile")}
                   className="flex items-center gap-2 hover:opacity-80 transition-smooth"
                 >
-                  <Avatar className="h-9 w-9 border-2" style={{ borderColor: 'var(--member-primary-color, #6366F1)' }}>
+                  <Avatar className="h-9 w-9 border-2 border-[var(--member-primary-color)]">
                     <AvatarImage 
                       src={member?.profile_photo_url} 
                       alt={member?.full_name}
                     />
-                    <AvatarFallback style={{ backgroundColor: 'var(--member-primary-color, #6366F1)', color: 'var(--member-text-color, #F1F5F9)' }} className="font-semibold">
+                    <AvatarFallback className="font-semibold bg-[var(--member-primary-color)] text-[var(--member-text-color)]">
                       {member?.full_name?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -421,14 +349,14 @@ const MemberArea = () => {
         </header>
 
         {/* Main Content */}
-        <div className="container mx-auto px-4 py-8" style={{ color: 'var(--member-text-color, #F1F5F9)' }}>
+        <div className="container mx-auto px-4 py-8 text-[var(--member-text-color)]">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-8" style={{ backgroundColor: 'var(--member-container-color, #1E293B)' }}>
-              <TabsTrigger value="modules" className="gap-2" style={{ color: 'var(--member-text-color, #F1F5F9)' }}>
+            <TabsList className="mb-8 bg-[var(--member-container-color)] text-[var(--member-text-color)]">
+              <TabsTrigger value="modules" className="gap-2 text-[var(--member-text-color)]">
                 <BookOpen className="h-4 w-4" />
                 Meus Módulos
               </TabsTrigger>
-              <TabsTrigger value="profile" className="gap-2" style={{ color: 'var(--member-text-color, #F1F5F9)' }}>
+              <TabsTrigger value="profile" className="gap-2 text-[var(--member-text-color)]">
                 <User className="h-4 w-4" />
                 Meu Perfil
               </TabsTrigger>
@@ -437,20 +365,20 @@ const MemberArea = () => {
             <TabsContent value="modules">
               {/* Welcome Section */}
               <div className="mb-8">
-                <h2 className="text-2xl md:text-3xl font-bold mb-2" style={{ color: 'var(--member-text-color, #F1F5F9)' }}>
+                <h2 className="text-2xl md:text-3xl font-bold mb-2 text-[var(--member-text-color)]">
                   Olá, {member?.full_name?.split(' ')[0]}!
                 </h2>
-                <p style={{ color: 'var(--member-muted-text-color, #A0A0A0)' }}>
+                <p className="text-[var(--member-muted-text-color)]">
                   Bem-vindo(a) à sua área de membros
                 </p>
               </div>
 
               {/* Modules Grid */}
               {modules.length === 0 ? (
-                <Card className="shadow-sm" style={{ backgroundColor: 'var(--member-container-color, #1E293B)' }}>
+                <Card className="shadow-sm bg-[var(--member-container-color)]">
                   <CardContent className="flex flex-col items-center justify-center py-16">
-                    <BookOpen className="h-16 w-16 mb-4" style={{ color: 'var(--member-muted-text-color, #A0A0A0)' }} />
-                    <p className="text-center" style={{ color: 'var(--member-muted-text-color, #A0A0A0)' }}>
+                    <BookOpen className="h-16 w-16 mb-4 text-[var(--member-muted-text-color)]" />
+                    <p className="text-center text-[var(--member-muted-text-color)]">
                       Nenhum módulo disponível ainda
                     </p>
                   </CardContent>
@@ -461,12 +389,11 @@ const MemberArea = () => {
                   <Button
                     variant="ghost"
                     onClick={() => setSelectedLesson(null)}
-                    className="mb-4"
-                    style={{ color: 'var(--member-text-color, #F1F5F9)' }}
+                    className="mb-4 text-[var(--member-text-color)]"
                   >
                     ← Voltar para módulos
                   </Button>
-                  <Card className="shadow-sm" style={{ backgroundColor: 'var(--member-container-color, #1E293B)' }}>
+                  <Card className="shadow-sm bg-[var(--member-container-color)]">
                     {modules.find(m => m.id === selectedLesson.module_id)?.banner_url && (
                       <div className="aspect-[3/1] overflow-hidden rounded-t-lg">
                         <img
@@ -479,8 +406,8 @@ const MemberArea = () => {
                     <CardHeader>
                       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                         <div className="flex-1">
-                          <CardTitle className="text-2xl md:text-3xl mb-2" style={{ color: 'var(--member-card-text-color, #F1F5F9)' }}>{selectedLesson.title}</CardTitle>
-                          <CardDescription className="text-base" style={{ color: 'var(--member-muted-text-color, #A0A0A0)' }}>{selectedLesson.description}</CardDescription>
+                          <CardTitle className="text-2xl md:text-3xl mb-2 text-[var(--member-card-text-color)]">{selectedLesson.title}</CardTitle>
+                          <CardDescription className="text-base text-[var(--member-muted-text-color)]">{selectedLesson.description}</CardDescription>
                         </div>
                         <Button
                           size="lg"
@@ -492,7 +419,7 @@ const MemberArea = () => {
                           }
                           className="w-full md:w-auto"
                           style={{ 
-                            backgroundColor: isLessonCompleted(selectedLesson.id) ? 'var(--member-primary-color, #6366F1)' : 'var(--member-button-color, #6366F1)', 
+                            backgroundColor: isLessonCompleted(selectedLesson.id) ? 'var(--member-primary-color)' : 'var(--member-button-color)', 
                             color: 'white',
                             opacity: isLessonCompleted(selectedLesson.id) ? 1 : 0.8
                           }}
@@ -506,11 +433,10 @@ const MemberArea = () => {
                       {renderFilePreview(selectedLesson)}
                       
                       {selectedLesson.content && (
-                        <div className="mt-6 p-6 rounded-lg" style={{ backgroundColor: 'var(--member-background-color, #0F172A)' }}>
-                          <h3 className="font-semibold mb-3 text-lg" style={{ color: 'var(--member-card-text-color, #F1F5F9)' }}>Conteúdo Adicional</h3>
+                        <div className="mt-6 p-6 rounded-lg bg-[var(--member-background-color)]">
+                          <h3 className="font-semibold mb-3 text-lg text-[var(--member-card-text-color)]">Conteúdo Adicional</h3>
                           <div
-                            className="prose prose-sm max-w-none dark:prose-invert"
-                            style={{ color: 'var(--member-text-color, #F1F5F9)' }}
+                            className="prose prose-sm max-w-none dark:prose-invert text-[var(--member-text-color)]"
                             dangerouslySetInnerHTML={{ __html: selectedLesson.content }}
                           />
                         </div>
@@ -535,8 +461,7 @@ const MemberArea = () => {
                     return (
                       <Card
                         key={module.id}
-                        className="overflow-hidden hover:shadow-xl transition-all border-border/50 group flex flex-col"
-                        style={{ backgroundColor: 'var(--member-container-color, #1E293B)' }}
+                        className="overflow-hidden hover:shadow-xl transition-all border-border/50 group flex flex-col bg-[var(--member-container-color)]"
                       >
                         {/* Banner */}
                         {module.banner_url && (
@@ -551,11 +476,11 @@ const MemberArea = () => {
 
                         {/* Content */}
                         <CardHeader className="pb-3">
-                          <CardTitle className="text-xl line-clamp-2" style={{ color: 'var(--member-card-text-color, #F1F5F9)' }}>
+                          <CardTitle className="text-xl line-clamp-2 text-[var(--member-card-text-color)]">
                             {module.title}
                           </CardTitle>
                           {module.description && (
-                            <CardDescription className="mt-2 line-clamp-3" style={{ color: 'var(--member-muted-text-color, #A0A0A0)' }}>
+                            <CardDescription className="mt-2 line-clamp-3 text-[var(--member-muted-text-color)]">
                               {module.description}
                             </CardDescription>
                           )}
@@ -564,13 +489,13 @@ const MemberArea = () => {
                         <CardContent className="flex-1 flex flex-col justify-between space-y-4">
                           {/* Stats */}
                           {moduleLessons.length > 0 && (
-                            <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--member-muted-text-color, #A0A0A0)' }}>
+                            <div className="flex items-center gap-4 text-sm text-[var(--member-muted-text-color)]">
                               <div className="flex items-center gap-1">
                                 <BookOpen className="h-4 w-4" />
                                 <span>{moduleLessons.length} aula{moduleLessons.length !== 1 ? 's' : ''}</span>
                               </div>
                               {completedCount > 0 && (
-                                <div className="flex items-center gap-1" style={{ color: 'var(--member-primary-color, #6366F1)' }}>
+                                <div className="flex items-center gap-1 text-[var(--member-primary-color)]">
                                   <CheckCircle className="h-4 w-4" />
                                   <span>{completedCount} concluída{completedCount !== 1 ? 's' : ''}</span>
                                 </div>
@@ -580,9 +505,8 @@ const MemberArea = () => {
 
                           {/* Action Button */}
                           <Button
-                            className="w-full gap-2 group-hover:gap-3 transition-all"
+                            className="w-full gap-2 group-hover:gap-3 transition-all bg-[var(--member-button-color)] text-white"
                             size="lg"
-                            style={{ backgroundColor: 'var(--member-button-color, #6366F1)', color: 'white' }}
                             onClick={() => {
                               const firstLesson = moduleLessons[0];
                               if (firstLesson) setSelectedLesson(firstLesson);
