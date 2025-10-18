@@ -12,12 +12,19 @@ interface DesignTabProps {
   projectId: string;
 }
 
+// Helper function to extract file path from Supabase public URL
+const getFilePathFromUrl = (url: string | null): string | null => {
+  if (!url) return null;
+  const parts = url.split('public/project-files/');
+  return parts.length > 1 ? parts[1] : null;
+};
+
 const DesignTab = ({ projectId }: DesignTabProps) => {
   const { branding, loading, saveBranding, defaultBranding, loadBranding } = useProjectBranding(projectId);
   const [localColors, setLocalColors] = useState(defaultBranding);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [deletingLogo, setDeletingLogo] = useState(false); // Novo estado para exclusão da logo
+  const [deletingLogo, setDeletingLogo] = useState(false);
 
   useEffect(() => {
     if (branding) {
@@ -46,16 +53,44 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
   };
 
   const handleResetDesign = async () => {
+    if (!confirm("Tem certeza que deseja restaurar o design padrão? Isso removerá sua logo personalizada.")) return;
     setSaving(true);
+
+    // Delete current logo from storage if it exists
+    if (branding?.custom_logo_url) {
+      const filePath = getFilePathFromUrl(branding.custom_logo_url);
+      if (filePath) {
+        try {
+          await supabase.storage.from("project-files").remove([filePath]);
+        } catch (error) {
+          console.error("Error deleting old logo from storage during reset:", error);
+          // Continue even if storage deletion fails, as DB update is more critical
+        }
+      }
+    }
+
     await saveBranding({ ...defaultBranding, custom_logo_url: null });
     setSaving(false);
-    // Reload branding to reflect default values and null logo
-    loadBranding();
+    loadBranding(); // Reload branding to reflect default values and null logo
   };
 
   const handleLogoUpload = useCallback(async (file: File) => {
     try {
       setUploadingLogo(true);
+
+      // Delete old logo from storage if it exists
+      if (branding?.custom_logo_url) {
+        const oldFilePath = getFilePathFromUrl(branding.custom_logo_url);
+        if (oldFilePath) {
+          try {
+            await supabase.storage.from("project-files").remove([oldFilePath]);
+          } catch (error) {
+            console.error("Error deleting old logo from storage:", error);
+            // Continue with new upload even if old deletion fails
+          }
+        }
+      }
+
       const fileExt = file.name.split(".").pop();
       const fileName = `${projectId}-logo-${Date.now()}.${fileExt}`;
       const filePath = `branding/${fileName}`;
@@ -86,13 +121,26 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
     } finally {
       setUploadingLogo(false);
     }
-  }, [projectId, saveBranding]);
+  }, [projectId, saveBranding, branding]);
 
   const handleDeleteLogo = useCallback(async () => {
     if (!confirm("Tem certeza que deseja remover a logo?")) return;
 
     try {
       setDeletingLogo(true);
+
+      // Delete logo from storage
+      if (branding?.custom_logo_url) {
+        const filePath = getFilePathFromUrl(branding.custom_logo_url);
+        if (filePath) {
+          const { error: storageError } = await supabase.storage
+            .from("project-files")
+            .remove([filePath]);
+
+          if (storageError) throw storageError;
+        }
+      }
+
       const updatedBranding = await saveBranding({ custom_logo_url: null });
 
       // Also update project's logo_url for consistency
@@ -111,7 +159,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
     } finally {
       setDeletingLogo(false);
     }
-  }, [projectId, saveBranding]);
+  }, [projectId, saveBranding, branding]);
 
   if (loading) {
     return (
@@ -138,8 +186,8 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
           uploadingLogo={uploadingLogo}
           customLogoUrl={localColors.custom_logo_url}
           defaultBranding={defaultBranding}
-          handleDeleteLogo={handleDeleteLogo} // Passando a nova função
-          deletingLogo={deletingLogo} // Passando o novo estado
+          handleDeleteLogo={handleDeleteLogo}
+          deletingLogo={deletingLogo}
         />
 
         <div className="space-y-6">
