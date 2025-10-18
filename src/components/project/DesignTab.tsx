@@ -33,6 +33,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
         card_text_color: branding.card_text_color || defaultBranding.card_text_color,
         muted_text_color: branding.muted_text_color || defaultBranding.muted_text_color,
         custom_logo_url: branding.custom_logo_url,
+        dark_mode: branding.dark_mode ?? defaultBranding.dark_mode, // Adicionado dark_mode
       });
     }
   }, [branding, defaultBranding]);
