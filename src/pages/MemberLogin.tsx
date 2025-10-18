@@ -25,10 +25,12 @@ const MemberLogin = () => {
   const { branding, loading: loadingBranding } = useProjectBranding(projectId!);
 
   useEffect(() => {
+    console.log("MemberLogin: Componente montado, projectId:", projectId);
     if (projectId) {
       loadProject();
     } else {
       setError("ID do projeto não fornecido");
+      console.error("MemberLogin: ID do projeto não fornecido na URL.");
     }
   }, [projectId]);
 
@@ -41,6 +43,7 @@ const MemberLogin = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log("MemberLogin: Carregando projetos para validação...");
 
       const { data: projectsData, error: projectsError } = await sb
         .from("projects")
@@ -48,18 +51,18 @@ const MemberLogin = () => {
         .limit(20);
 
       if (projectsError) {
-        console.error("Erro ao carregar projetos:", projectsError);
+        console.error("MemberLogin: Erro ao carregar projetos:", projectsError);
         setError("Erro ao carregar projetos do banco de dados");
         return;
       }
 
       setAllProjects(projectsData || []);
+      console.log("MemberLogin: Projetos carregados:", projectsData?.map(p => ({ id: p.id, name: p.name })));
 
       const projectExists = projectsData?.some(p => p.id === projectId);
       
       if (!projectExists) {
-        console.error("Projeto não encontrado:", projectId);
-        console.log("Projetos disponíveis:", projectsData?.map(p => ({ id: p.id, name: p.name })));
+        console.error("MemberLogin: Projeto não encontrado com ID:", projectId);
         setError("Projeto não encontrado. Verifique se o ID está correto ou se o projeto foi excluído.");
         return;
       }
@@ -71,14 +74,15 @@ const MemberLogin = () => {
         .single();
 
       if (projectError) {
-        console.error("Erro ao carregar projeto específico:", projectError);
+        console.error("MemberLogin: Erro ao carregar projeto específico:", projectError);
         setError("Erro ao carregar informações do projeto");
         return;
       }
 
       setProject(projectData);
+      console.log("MemberLogin: Projeto carregado com sucesso:", projectData.name);
     } catch (error) {
-      console.error("Error loading project:", error);
+      console.error("MemberLogin: Erro inesperado ao carregar projeto:", error);
       setError("Erro ao carregar informações do projeto");
     } finally {
       setLoading(false);
@@ -88,6 +92,8 @@ const MemberLogin = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
+    console.log("MemberLogin: Tentativa de login para email:", email);
 
     try {
       const { data: member, error } = await sb
@@ -98,18 +104,22 @@ const MemberLogin = () => {
         .single();
 
       if (error || !member) {
+        console.error("MemberLogin: Membro não encontrado ou erro na consulta:", error);
         toast.error("Email ou senha incorretos");
         setLoading(false);
         return;
       }
+      console.log("MemberLogin: Membro encontrado:", member.full_name);
 
       if (!member.is_active) {
+        console.warn("MemberLogin: Conta inativa para membro:", member.full_name);
         toast.error("Sua conta está inativa. Entre em contato com o administrador.");
         setLoading(false);
         return;
       }
 
       const passwordMatch = await bcrypt.compare(password, member.password_hash);
+      console.log("MemberLogin: Comparação de senha:", passwordMatch);
 
       if (!passwordMatch) {
         toast.error("Email ou senha incorretos");
@@ -117,18 +127,21 @@ const MemberLogin = () => {
         return;
       }
 
-      sessionStorage.setItem("member_session", JSON.stringify({
+      const memberSessionData = {
         id: member.id,
         email: member.email,
         full_name: member.full_name,
         project_id: projectId,
         profile_photo_url: member.profile_photo_url
-      }));
+      };
+      sessionStorage.setItem("member_session", JSON.stringify(memberSessionData));
+      console.log("MemberLogin: Sessão de membro armazenada:", memberSessionData);
 
       toast.success(`Bem-vindo, ${member.full_name}!`);
+      console.log("MemberLogin: Redirecionando para /member/:projectId/area");
       navigate(`/member/${projectId}/area`);
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("MemberLogin: Erro durante o login:", error);
       toast.error("Erro ao fazer login");
     } finally {
       setLoading(false);
@@ -191,7 +204,7 @@ const MemberLogin = () => {
 
   return (
     <div 
-      className={`min-h-screen flex items-center justify-center relative overflow-hidden`} // Removed member-dark class
+      className={`min-h-screen flex items-center justify-center relative overflow-hidden`}
       style={{ backgroundColor: 'var(--member-background-color)' }}
     >
       {/* Background Pattern */}

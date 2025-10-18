@@ -52,34 +52,40 @@ const MemberArea = () => {
   const { branding, loading: loadingBranding, saveBranding } = useProjectBranding(projectId!);
 
   useEffect(() => {
+    console.log("MemberArea: Componente montado, verificando sessão...");
     checkMemberSession();
   }, [projectId]);
 
   useEffect(() => {
     if (member) {
+      console.log("MemberArea: Membro detectado, carregando dados da área...");
       loadData();
+    } else {
+      console.log("MemberArea: Nenhum membro na sessão, aguardando...");
     }
   }, [member]);
 
-  // const toggleDarkMode = async () => { // Removed
-  //   if (!branding) return;
-  //   await saveBranding({ dark_mode: !branding.dark_mode });
-  // };
-
   const checkMemberSession = async () => {
+    console.log("MemberArea: Executando checkMemberSession...");
     const session = sessionStorage.getItem("member_session");
     if (!session) {
+      console.log("MemberArea: Nenhuma sessão encontrada, redirecionando para login.");
       navigate(`/member/${projectId}`);
       return;
     }
 
     const memberData = JSON.parse(session);
+    console.log("MemberArea: Sessão encontrada:", memberData);
+
     if (memberData.project_id !== projectId) {
+      console.warn("MemberArea: ID do projeto na sessão não corresponde ao ID da URL, redirecionando.");
+      sessionStorage.removeItem("member_session"); // Limpa sessão inválida
       navigate(`/member/${projectId}`);
       return;
     }
 
     try {
+      console.log("MemberArea: Tentando recarregar dados do membro do DB...");
       const { data: updatedMember } = await sb
         .from("project_members")
         .select("*")
@@ -95,19 +101,23 @@ const MemberArea = () => {
         };
         sessionStorage.setItem("member_session", JSON.stringify(updatedSession));
         setMember(updatedSession);
+        console.log("MemberArea: Dados do membro atualizados e sessão recarregada.");
       } else {
         setMember(memberData);
+        console.log("MemberArea: Membro não encontrado no DB, usando dados da sessão.");
       }
     } catch (error) {
-      console.error("Error reloading member data:", error);
-      setMember(memberData);
+      console.error("MemberArea: Erro ao recarregar dados do membro:", error);
+      setMember(memberData); // Continua com os dados da sessão mesmo com erro
     }
   };
 
   const loadData = async () => {
+    console.log("MemberArea: Executando loadData...");
     try {
       setLoadingContent(true);
 
+      console.log("MemberArea: Carregando dados do projeto...");
       const { data: projectData, error: projectError } = await sb
         .from("projects")
         .select("*")
@@ -115,26 +125,31 @@ const MemberArea = () => {
         .single();
 
       if (projectError) {
-        console.error("Error loading project:", projectError);
+        console.error("MemberArea: Erro ao carregar projeto:", projectError);
         toast.error("Projeto não encontrado");
         return;
       }
-
       setProject(projectData);
+      console.log("MemberArea: Projeto carregado:", projectData.name);
 
+      console.log("MemberArea: Atualizando último login do membro...");
       await sb
         .from("project_members")
         .update({ last_login: new Date().toISOString() })
         .eq("id", member.id);
+      console.log("MemberArea: Último login atualizado.");
 
+      console.log("MemberArea: Carregando acessos de módulo do membro...");
       const { data: accessData } = await sb
         .from("member_module_access")
         .select("module_id")
         .eq("member_id", member.id);
 
       const moduleIds = accessData?.map(a => a.module_id) || [];
+      console.log("MemberArea: Módulos com acesso:", moduleIds);
 
       if (moduleIds.length > 0) {
+        console.log("MemberArea: Carregando módulos publicados...");
         const { data: modulesData, error: modulesError } = await sb
           .from("modules")
           .select("*")
@@ -143,11 +158,13 @@ const MemberArea = () => {
           .order("display_order", { ascending: true });
 
         if (modulesError) {
-          console.error("Error loading modules:", modulesError);
+          console.error("MemberArea: Erro ao carregar módulos:", modulesError);
         } else {
           setModules(modulesData || []);
+          console.log("MemberArea: Módulos carregados:", modulesData?.length);
 
           for (const module of modulesData || []) {
+            console.log(`MemberArea: Carregando aulas para o módulo ${module.title} (${module.id})...`);
             const { data: lessonsData, error: lessonsError } = await sb
               .from("lessons")
               .select("*")
@@ -156,40 +173,48 @@ const MemberArea = () => {
               .order("display_order", { ascending: true });
 
             if (lessonsError) {
-              console.error(`Error loading lessons for module ${module.id}:`, lessonsError);
+              console.error(`MemberArea: Erro ao carregar aulas para o módulo ${module.id}:`, lessonsError);
             } else {
               setLessons(prev => ({
                 ...prev,
                 [module.id]: lessonsData || []
               }));
+              console.log(`MemberArea: Aulas carregadas para o módulo ${module.id}:`, lessonsData?.length);
             }
           }
         }
       } else {
-        console.log("No module access found for member");
+        console.log("MemberArea: Nenhum acesso a módulo encontrado para o membro.");
+        setModules([]); // Garante que a lista de módulos esteja vazia
+        setLessons({}); // Garante que a lista de aulas esteja vazia
       }
 
+      console.log("MemberArea: Carregando progresso das aulas...");
       const { data: progressData } = await sb
         .from("lesson_progress")
         .select("lesson_id, completed")
         .eq("member_id", member.id);
 
       setProgress(progressData || []);
+      console.log("MemberArea: Progresso carregado:", progressData?.length);
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error("MemberArea: Erro ao carregar dados da área de membros:", error);
       toast.error("Erro ao carregar conteúdo");
     } finally {
       setLoadingContent(false);
+      console.log("MemberArea: Carregamento de conteúdo finalizado.");
     }
   };
 
   const handleLogout = () => {
+    console.log("MemberArea: Realizando logout...");
     sessionStorage.removeItem("member_session");
     navigate(`/member/${projectId}`);
     toast.success("Logout realizado com sucesso");
   };
 
   const toggleLessonCompletion = async (lessonId: string, currentStatus: boolean) => {
+    console.log(`MemberArea: Alternando conclusão da aula ${lessonId}. Status atual: ${currentStatus}`);
     try {
       if (currentStatus) {
         await sb
@@ -197,6 +222,7 @@ const MemberArea = () => {
           .delete()
           .eq("member_id", member.id)
           .eq("lesson_id", lessonId);
+        console.log(`MemberArea: Aula ${lessonId} marcada como não concluída.`);
       } else {
         await sb
           .from("lesson_progress")
@@ -206,6 +232,7 @@ const MemberArea = () => {
             completed: true,
             completed_at: new Date().toISOString(),
           });
+        console.log(`MemberArea: Aula ${lessonId} marcada como concluída.`);
       }
 
       setProgress(prev => {
@@ -218,7 +245,7 @@ const MemberArea = () => {
 
       toast.success(currentStatus ? "Marcado como não concluído" : "Marcado como concluído");
     } catch (error) {
-      console.error("Error updating progress:", error);
+      console.error("MemberArea: Erro ao atualizar progresso:", error);
       toast.error("Erro ao atualizar progresso");
     }
   };
