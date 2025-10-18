@@ -123,30 +123,36 @@ export function useProjectBranding(projectId: string) {
     try {
       const baseBranding = branding || { ...defaultBranding, project_id: projectId };
 
-      const commonFields = {
-        ...baseBranding,
-        ...newBranding,
-        project_id: projectId, // Ensure project_id is always present and correct
+      // Create an object that satisfies TablesInsert<'project_branding'>
+      // This ensures 'project_id' is always present and required for the upsert call.
+      const upsertPayload: TablesInsert<'project_branding'> = {
+        project_id: projectId, // Explicitly required for insert and conflict resolution
+        custom_logo_url: newBranding.custom_logo_url ?? baseBranding.custom_logo_url,
+        primary_color: newBranding.primary_color ?? baseBranding.primary_color,
+        secondary_color: newBranding.secondary_color ?? baseBranding.secondary_color,
+        accent_color: newBranding.accent_color ?? baseBranding.accent_color,
+        background_color: newBranding.background_color ?? baseBranding.background_color,
+        container_color: newBranding.container_color ?? baseBranding.container_color,
+        button_color: newBranding.button_color ?? baseBranding.button_color,
+        text_color: newBranding.text_color ?? baseBranding.text_color,
+        header_background_color: newBranding.header_background_color ?? baseBranding.header_background_color,
+        header_text_color: newBranding.header_text_color ?? baseBranding.header_text_color,
+        card_text_color: newBranding.card_text_color ?? baseBranding.card_text_color,
+        muted_text_color: newBranding.muted_text_color ?? baseBranding.muted_text_color,
+        dark_mode: newBranding.dark_mode ?? baseBranding.dark_mode ?? false, // Ensure dark_mode is always a boolean
         updated_at: new Date().toISOString(),
+        // 'created_at' is handled by DB default on insert, not updated on upsert
+        // 'id' is optional in TablesInsert, so we'll add it conditionally if it's an update.
       };
 
-      let upsertObject: TablesInsert<'project_branding'> | TablesUpdate<'project_branding'>;
-
-      if (baseBranding.id) { // Existing branding, so it's an update
-        upsertObject = {
-          id: baseBranding.id, // Include ID for update
-          ...commonFields,
-        } as TablesUpdate<'project_branding'>; // Cast to Update type
-      } else { // No existing branding, it's an insert
-        upsertObject = {
-          ...commonFields,
-        } as TablesInsert<'project_branding'>; // Cast to Insert type
-        delete (upsertObject as TablesInsert<'project_branding'>).id; // Ensure ID is not sent for insert
+      // If it's an existing branding, add the ID to the payload for upsert to match
+      if (baseBranding.id) {
+        upsertPayload.id = baseBranding.id;
       }
 
       const { data, error } = await sb
         .from("project_branding")
-        .upsert(upsertObject, { onConflict: 'project_id' })
+        .upsert(upsertPayload, { onConflict: 'project_id' })
         .select()
         .single();
 
