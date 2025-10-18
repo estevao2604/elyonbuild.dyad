@@ -1,20 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { useProjectBranding } from "@/hooks/useProjectBranding";
-import LogoUploadCard from "./design/LogoUploadCard";
-import ColorPickerSection from "./design/ColorPickerSection";
-import DesignPreviewCard from "./design/DesignPreviewCard";
-import DesignActions from "./design/DesignActions";
+import BrandingSettingsForm from "./design/BrandingSettingsForm";
+import BrandingPreview from "./design/BrandingPreview";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { sb } from "@/integrations/supabase/sb";
+import { Loader2 } from "lucide-react";
 
 interface DesignTabProps {
   projectId: string;
 }
 
 const DesignTab = ({ projectId }: DesignTabProps) => {
-  const { branding, loading, saveBranding, defaultBranding } = useProjectBranding(projectId);
+  const { branding, loading, saveBranding, defaultBranding, loadBranding } = useProjectBranding(projectId);
   const [localColors, setLocalColors] = useState(defaultBranding);
-  // const [localDarkMode, setLocalDarkMode] = useState(false); // Removed
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     if (branding) {
@@ -32,21 +34,57 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
         muted_text_color: branding.muted_text_color || defaultBranding.muted_text_color,
         custom_logo_url: branding.custom_logo_url,
       });
-      // setLocalDarkMode(branding.dark_mode || false); // Removed
     }
   }, [branding, defaultBranding]);
 
   const handleSaveColors = async () => {
     setSaving(true);
-    await saveBranding({ ...localColors }); // Removed dark_mode
+    await saveBranding({ ...localColors });
     setSaving(false);
   };
 
   const handleResetDesign = async () => {
     setSaving(true);
-    await saveBranding({ ...defaultBranding, custom_logo_url: null }); // Removed dark_mode
+    await saveBranding({ ...defaultBranding, custom_logo_url: null });
     setSaving(false);
+    // Reload branding to reflect default values and null logo
+    loadBranding();
   };
+
+  const handleLogoUpload = useCallback(async (file: File) => {
+    try {
+      setUploadingLogo(true);
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${projectId}-logo-${Date.now()}.${fileExt}`;
+      const filePath = `branding/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("project-files")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("project-files").getPublicUrl(filePath);
+
+      const updatedBranding = await saveBranding({ custom_logo_url: data.publicUrl });
+
+      // Also update project's logo_url for consistency
+      await sb
+        .from("projects")
+        .update({ logo_url: data.publicUrl })
+        .eq("id", projectId);
+
+      if (updatedBranding) {
+        setLocalColors(prev => ({ ...prev, custom_logo_url: updatedBranding.custom_logo_url }));
+      }
+      toast.success("Logo do Produto atualizado com sucesso!");
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast.error("Erro ao fazer upload: " + error.message);
+    } finally {
+      setUploadingLogo(false);
+    }
+  }, [projectId, saveBranding]);
 
   if (loading) {
     return (
@@ -66,33 +104,44 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <BrandingSettingsForm
+          localColors={localColors}
+          setLocalColors={setLocalColors}
+          handleLogoUpload={handleLogoUpload}
+          uploadingLogo={uploadingLogo}
+          customLogoUrl={localColors.custom_logo_url}
+          defaultBranding={defaultBranding}
+        />
+
         <div className="space-y-6">
-          <LogoUploadCard
-            projectId={projectId}
+          <BrandingPreview
+            localColors={localColors}
             customLogoUrl={localColors.custom_logo_url}
-            saveBranding={saveBranding}
           />
-          <DesignPreviewCard
-            localColors={localColors}
-            localDarkMode={false} // Always false now
-          />
-        </div>
-
-        <div className="space-y-6">
-          <ColorPickerSection
-            localColors={localColors}
-            setLocalColors={setLocalColors}
-            // localDarkMode={localDarkMode} // Removed
-            // setLocalDarkMode={setLocalDarkMode} // Removed
-            defaultBranding={defaultBranding}
-          />
-
-          <DesignActions
-            onSave={handleSaveColors}
-            onReset={handleResetDesign}
-            saving={saving}
-            uploading={false} // LogoUploadCard manages its own uploading state
-          />
+          <div className="flex gap-3 pt-4 border-t border-border">
+            <Button
+              onClick={handleSaveColors}
+              disabled={saving || uploadingLogo}
+              className="flex-1 bg-gradient-primary hover:opacity-90 transition-smooth"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                "Salvar Alterações"
+              )}
+            </Button>
+            <Button
+              onClick={handleResetDesign}
+              disabled={saving || uploadingLogo}
+              variant="outline"
+              className="flex-1"
+            >
+              Restaurar Padrão
+            </Button>
+          </div>
         </div>
       </div>
     </div>

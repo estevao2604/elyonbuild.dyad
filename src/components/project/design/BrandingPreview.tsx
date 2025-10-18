@@ -2,18 +2,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Palette, BookOpen, CheckCircle } from "lucide-react";
 
-interface DesignPreviewCardProps {
-  localColors: any; // Use a more specific type if available
-  // localDarkMode: boolean; // Removed
+interface BrandingPreviewProps {
+  localColors: any;
+  customLogoUrl: string | null;
 }
 
-const DesignPreviewCard = ({ localColors }: DesignPreviewCardProps) => {
+const BrandingPreview = ({ localColors, customLogoUrl }: BrandingPreviewProps) => {
   return (
     <Card className="shadow-card border-border/50">
       <CardHeader>
         <CardTitle>Pré-visualização</CardTitle>
         <CardDescription>
-          Veja como seu design aparecerá na área de membros
+          Veja como seu design aparecerá na área de membros.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -23,7 +23,12 @@ const DesignPreviewCard = ({ localColors }: DesignPreviewCardProps) => {
             className="h-14 rounded-lg flex items-center justify-between px-4"
             style={{ backgroundColor: localColors.header_background_color, color: localColors.header_text_color }}
           >
-            <span className="font-bold text-lg">Meu Projeto</span>
+            <div className="flex items-center gap-2">
+              {customLogoUrl && (
+                <img src={customLogoUrl} alt="Logo" className="h-8 w-8 object-contain" />
+              )}
+              <span className="font-bold text-lg">Meu Projeto</span>
+            </div>
             <Palette className="h-6 w-6" />
           </div>
 
@@ -78,4 +83,4 @@ const DesignPreviewCard = ({ localColors }: DesignPreviewCardProps) => {
   );
 };
 
-export default DesignPreviewCard;
+export default BrandingPreview;
