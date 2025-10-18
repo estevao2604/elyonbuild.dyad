@@ -13,6 +13,7 @@ interface BrandingSettingsFormProps {
   defaultBranding: any;
 }
 
+// Componente ColorInput movido para dentro deste arquivo
 const ColorInput = ({ id, label, value, onChange, placeholder, description }: {
   id: string;
   label: string;

@@ -15,7 +15,8 @@ interface UserProfileProps {
 }
 
 const UserProfile = ({ user }: UserProfileProps) => {
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
@@ -30,14 +31,15 @@ const UserProfile = ({ user }: UserProfileProps) => {
     try {
       const { data, error } = await sb
         .from("profiles")
-        .select("*")
+        .select("first_name, last_name, avatar_url")
         .eq("id", user.id)
         .single();
 
       if (error && error.code !== "PGRST116") throw error;
       
       if (data) {
-        setFullName(data.full_name || "");
+        setFirstName(data.first_name || "");
+        setLastName(data.last_name || "");
         setAvatarUrl(data.avatar_url || "");
       }
     } catch (error) {
@@ -88,7 +90,7 @@ const UserProfile = ({ user }: UserProfileProps) => {
     try {
       const { error } = await sb
         .from("profiles")
-        .update({ full_name: fullName })
+        .update({ first_name: firstName, last_name: lastName })
         .eq("id", user.id);
 
       if (error) throw error;
@@ -128,6 +130,7 @@ const UserProfile = ({ user }: UserProfileProps) => {
   };
 
   const getInitials = () => {
+    const fullName = `${firstName} ${lastName}`.trim();
     if (fullName) {
       return fullName
         .split(" ")
@@ -139,6 +142,8 @@ const UserProfile = ({ user }: UserProfileProps) => {
     return user.email?.charAt(0).toUpperCase() || "U";
   };
 
+  const displayFullName = `${firstName} ${lastName}`.trim();
+
   return (
     <>
       <Button
@@ -148,7 +153,7 @@ const UserProfile = ({ user }: UserProfileProps) => {
         className="relative"
       >
         <Avatar className="h-9 w-9 border-2 border-border">
-          <AvatarImage src={avatarUrl} alt={fullName || user.email || ""} />
+          <AvatarImage src={avatarUrl} alt={displayFullName || user.email || ""} />
           <AvatarFallback className="bg-primary/10 text-primary">
             {getInitials()}
           </AvatarFallback>
@@ -169,7 +174,7 @@ const UserProfile = ({ user }: UserProfileProps) => {
             <div className="flex flex-col items-center gap-4 pb-6 border-b border-border">
               <div className="relative group">
                 <Avatar className="h-24 w-24 border-4 border-border">
-                  <AvatarImage src={avatarUrl} alt={fullName || user.email || ""} />
+                  <AvatarImage src={avatarUrl} alt={displayFullName || user.email || ""} />
                   <AvatarFallback className="bg-primary/10 text-primary text-2xl">
                     {getInitials()}
                   </AvatarFallback>
@@ -206,13 +211,24 @@ const UserProfile = ({ user }: UserProfileProps) => {
               </h3>
               
               <div className="space-y-2">
-                <Label htmlFor="profile-name">Nome Completo</Label>
+                <Label htmlFor="profile-first-name">Primeiro Nome</Label>
                 <Input
-                  id="profile-name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  id="profile-first-name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                   onBlur={handleNameUpdate}
-                  placeholder="Seu nome completo"
+                  placeholder="Seu primeiro nome"
+                  className="h-11 bg-background/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile-last-name">Sobrenome</Label>
+                <Input
+                  id="profile-last-name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  onBlur={handleNameUpdate}
+                  placeholder="Seu sobrenome"
                   className="h-11 bg-background/50"
                 />
               </div>
