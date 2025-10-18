@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload } from "lucide-react";
+import { Upload, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface BrandingSettingsFormProps {
@@ -11,6 +11,8 @@ interface BrandingSettingsFormProps {
   uploadingLogo: boolean;
   customLogoUrl: string | null;
   defaultBranding: any;
+  handleDeleteLogo: () => void; // Nova prop para excluir a logo
+  deletingLogo: boolean; // Nova prop para estado de carregamento da exclusão
 }
 
 // Componente ColorInput movido para dentro deste arquivo
@@ -53,6 +55,8 @@ const BrandingSettingsForm = ({
   uploadingLogo,
   customLogoUrl,
   defaultBranding,
+  handleDeleteLogo,
+  deletingLogo,
 }: BrandingSettingsFormProps) => {
   return (
     <Card className="shadow-card border-border/50">
@@ -67,12 +71,26 @@ const BrandingSettingsForm = ({
         <div className="space-y-4 border-b border-border pb-6">
           <h3 className="text-lg font-semibold">Logo do Produto</h3>
           {customLogoUrl && (
-            <div className="flex items-center justify-center p-6 bg-muted/50 rounded-lg">
+            <div className="flex flex-col items-center justify-center p-6 bg-muted/50 rounded-lg mb-4">
               <img
                 src={customLogoUrl}
                 alt="Logo do Produto"
                 className="max-h-32 object-contain"
               />
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDeleteLogo}
+                disabled={deletingLogo}
+                className="mt-4"
+              >
+                {deletingLogo ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                Remover Logo
+              </Button>
             </div>
           )}
           <div>
@@ -84,7 +102,7 @@ const BrandingSettingsForm = ({
                   <>
                     <Upload className="h-5 w-5 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">
-                      Clique para fazer upload do logo
+                      {customLogoUrl ? "Clique para alterar o logo" : "Clique para fazer upload do logo"}
                     </span>
                   </>
                 )}

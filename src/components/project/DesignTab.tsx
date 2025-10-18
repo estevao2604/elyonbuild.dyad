@@ -17,6 +17,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
   const [localColors, setLocalColors] = useState(defaultBranding);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [deletingLogo, setDeletingLogo] = useState(false); // Novo estado para exclusão da logo
 
   useEffect(() => {
     if (branding) {
@@ -33,7 +34,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
         card_text_color: branding.card_text_color || defaultBranding.card_text_color,
         muted_text_color: branding.muted_text_color || defaultBranding.muted_text_color,
         custom_logo_url: branding.custom_logo_url,
-        dark_mode: branding.dark_mode ?? defaultBranding.dark_mode, // Adicionado dark_mode
+        dark_mode: branding.dark_mode ?? defaultBranding.dark_mode,
       });
     }
   }, [branding, defaultBranding]);
@@ -87,6 +88,31 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
     }
   }, [projectId, saveBranding]);
 
+  const handleDeleteLogo = useCallback(async () => {
+    if (!confirm("Tem certeza que deseja remover a logo?")) return;
+
+    try {
+      setDeletingLogo(true);
+      const updatedBranding = await saveBranding({ custom_logo_url: null });
+
+      // Also update project's logo_url for consistency
+      await sb
+        .from("projects")
+        .update({ logo_url: null })
+        .eq("id", projectId);
+
+      if (updatedBranding) {
+        setLocalColors(prev => ({ ...prev, custom_logo_url: updatedBranding.custom_logo_url }));
+      }
+      toast.success("Logo do Produto removida com sucesso!");
+    } catch (error: any) {
+      console.error("Delete logo error:", error);
+      toast.error("Erro ao remover a logo: " + error.message);
+    } finally {
+      setDeletingLogo(false);
+    }
+  }, [projectId, saveBranding]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -112,6 +138,8 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
           uploadingLogo={uploadingLogo}
           customLogoUrl={localColors.custom_logo_url}
           defaultBranding={defaultBranding}
+          handleDeleteLogo={handleDeleteLogo} // Passando a nova função
+          deletingLogo={deletingLogo} // Passando o novo estado
         />
 
         <div className="space-y-6">
@@ -122,7 +150,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
           <div className="flex gap-3 pt-4 border-t border-border">
             <Button
               onClick={handleSaveColors}
-              disabled={saving || uploadingLogo}
+              disabled={saving || uploadingLogo || deletingLogo}
               className="flex-1 bg-gradient-primary hover:opacity-90 transition-smooth"
             >
               {saving ? (
@@ -136,7 +164,7 @@ const DesignTab = ({ projectId }: DesignTabProps) => {
             </Button>
             <Button
               onClick={handleResetDesign}
-              disabled={saving || uploadingLogo}
+              disabled={saving || uploadingLogo || deletingLogo}
               variant="outline"
               className="flex-1"
             >
