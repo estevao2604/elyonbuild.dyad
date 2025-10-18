@@ -71,8 +71,9 @@ export function useProjectBranding(projectId: string) {
       if (error && error.code !== "PGRST116") {
         console.error("Error fetching branding (not PGRST116):", error);
         toast.error("Erro ao carregar configurações de design.");
-        setBranding({ ...defaultBranding, project_id: projectId });
-        applyBrandingStyles({ ...defaultBranding, project_id: projectId });
+        const fallbackBranding: Branding = { ...defaultBranding, project_id: projectId };
+        setBranding(fallbackBranding);
+        applyBrandingStyles(fallbackBranding);
         setLoading(false);
         return;
       }
@@ -88,8 +89,9 @@ export function useProjectBranding(projectId: string) {
         if (createError) {
           console.error("Error creating default branding:", createError);
           toast.error("Erro ao criar configurações de design padrão.");
-          setBranding({ ...defaultBranding, project_id: projectId });
-          applyBrandingStyles({ ...defaultBranding, project_id: projectId });
+          const fallbackBranding: Branding = { ...defaultBranding, project_id: projectId };
+          setBranding(fallbackBranding);
+          applyBrandingStyles(fallbackBranding);
           setLoading(false);
           return;
         }
@@ -102,8 +104,9 @@ export function useProjectBranding(projectId: string) {
     } catch (error: any) {
       console.error("Unexpected error in loadBranding:", error);
       toast.error("Erro inesperado ao carregar design.");
-      setBranding({ ...defaultBranding, project_id: projectId });
-      applyBrandingStyles({ ...defaultBranding, project_id: projectId });
+      const fallbackBranding: Branding = { ...defaultBranding, project_id: projectId };
+      setBranding(fallbackBranding);
+      applyBrandingStyles(fallbackBranding);
     } finally {
       setLoading(false);
     }
@@ -116,22 +119,23 @@ export function useProjectBranding(projectId: string) {
   const saveBranding = useCallback(async (newBranding: Partial<Branding>) => {
     if (!projectId) return;
     try {
-      const payload: TablesInsert<'project_branding'> | TablesUpdate<'project_branding'> = {
+      const payload = {
         ...branding, 
         ...newBranding, 
         project_id: projectId, 
         updated_at: new Date().toISOString(),
       };
 
-      // Ensure 'id' is only present if we are updating an existing record
-      const upsertObject = { ...payload };
+      const upsertObject: TablesInsert<'project_branding'> | TablesUpdate<'project_branding'> = { ...payload };
       if (!branding?.id) {
-        delete upsertObject.id; 
+        // If no existing branding ID, it's an insert, so ensure 'id' is not present in the insert payload
+        // Supabase will generate it.
+        delete (upsertObject as TablesInsert<'project_branding'>).id; 
       }
 
       const { data, error } = await sb
         .from("project_branding")
-        .upsert(upsertObject as TablesInsert<'project_branding'> | TablesUpdate<'project_branding'>, { onConflict: 'project_id' })
+        .upsert(upsertObject, { onConflict: 'project_id' })
         .select()
         .single();
 
