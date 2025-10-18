@@ -18,6 +18,7 @@ interface Branding {
   header_text_color: string | null;
   card_text_color: string | null;
   muted_text_color: string | null;
+  dark_mode: boolean | null; // Adicionado de volta para corresponder ao types.ts
 }
 
 const defaultBranding: Omit<Branding, 'project_id'> = { // Omit project_id from default as it's set dynamically
@@ -33,6 +34,7 @@ const defaultBranding: Omit<Branding, 'project_id'> = { // Omit project_id from 
   header_text_color: "#F1F5F9",
   card_text_color: "#F1F5F9",
   muted_text_color: "#A0A0A0",
+  dark_mode: false, // Adicionado de volta
 };
 
 export function useProjectBranding(projectId: string) {
@@ -119,18 +121,27 @@ export function useProjectBranding(projectId: string) {
   const saveBranding = useCallback(async (newBranding: Partial<Branding>) => {
     if (!projectId) return;
     try {
-      const payload = {
-        ...branding, 
-        ...newBranding, 
-        project_id: projectId, 
+      const baseBranding = branding || { ...defaultBranding, project_id: projectId };
+
+      const commonFields = {
+        ...baseBranding,
+        ...newBranding,
+        project_id: projectId, // Ensure project_id is always present and correct
         updated_at: new Date().toISOString(),
       };
 
-      const upsertObject: TablesInsert<'project_branding'> | TablesUpdate<'project_branding'> = { ...payload };
-      if (!branding?.id) {
-        // If no existing branding ID, it's an insert, so ensure 'id' is not present in the insert payload
-        // Supabase will generate it.
-        delete (upsertObject as TablesInsert<'project_branding'>).id; 
+      let upsertObject: TablesInsert<'project_branding'> | TablesUpdate<'project_branding'>;
+
+      if (baseBranding.id) { // Existing branding, so it's an update
+        upsertObject = {
+          id: baseBranding.id, // Include ID for update
+          ...commonFields,
+        } as TablesUpdate<'project_branding'>; // Cast to Update type
+      } else { // No existing branding, it's an insert
+        upsertObject = {
+          ...commonFields,
+        } as TablesInsert<'project_branding'>; // Cast to Insert type
+        delete (upsertObject as TablesInsert<'project_branding'>).id; // Ensure ID is not sent for insert
       }
 
       const { data, error } = await sb
