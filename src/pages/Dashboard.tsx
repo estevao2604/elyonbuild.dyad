@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { LogOut } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
@@ -15,6 +14,7 @@ interface Project {
   primary_color: string | null;
   secondary_color: string | null;
   created_at: string;
+  owner_id: string;
 }
 
 const MemberArea = () => {
@@ -25,33 +25,25 @@ const MemberArea = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔐 Checa autenticação
+  // 🔐 Pega sessão (mas não redireciona mais automaticamente)
   useEffect(() => {
-    const checkAuth = async () => {
+    const getUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
-      setUser(session.user);
+      if (session) setUser(session.user);
     };
 
-    checkAuth();
-
+    getUser();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!session) {
-          navigate("/auth");
-        } else {
-          setUser(session.user);
-        }
+      (_event, session) => {
+        if (session) setUser(session.user);
+        else setUser(null);
       }
     );
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, []);
 
-  // 🔎 Carrega o projeto específico
+  // 🔎 Carrega projeto pelo ID
   useEffect(() => {
     const loadProject = async () => {
       try {
@@ -80,11 +72,6 @@ const MemberArea = () => {
     loadProject();
   }, [id]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -105,46 +92,45 @@ const MemberArea = () => {
     );
   }
 
+  const isOwner = user?.id === project.owner_id;
+
   return (
     <div className="min-h-screen bg-background">
-      <nav className="border-b border-border bg-card/50 backdrop-blur-lg sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-14 sm:h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="font-bold text-lg">{project.name}</div>
-          </div>
-          <div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <LogOut className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Sair</span>
-            </Button>
-          </div>
-        </div>
-      </nav>
-
       <main className="container mx-auto px-4 py-6 sm:py-8">
         <Card className="shadow-card border-border/50 bg-gradient-to-br from-card to-muted/20">
           <CardHeader>
             <CardTitle>{project.name}</CardTitle>
-            <CardDescription>{project.description || "Sem descrição"}</CardDescription>
+            <CardDescription>
+              {project.description || "Sem descrição"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
               Criado em {new Date(project.created_at).toLocaleDateString("pt-BR")}
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">ID do projeto: {project.id}</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              ID do projeto: {project.id}
+            </p>
           </CardContent>
         </Card>
 
-        {/* Aqui você pode renderizar o conteúdo da área de membros */}
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold mb-2">Conteúdo da área de membros</h2>
-          <p className="text-sm text-muted-foreground">Adicione aqui os módulos, vídeos ou materiais do projeto.</p>
-        </div>
+        {isOwner ? (
+          <div className="mt-6">
+            <h2 className="text-lg font-semibold mb-2">🔧 Construtor da Área de Membros</h2>
+            <p className="text-sm text-muted-foreground">
+              Aqui só o dono do projeto consegue editar módulos, vídeos ou materiais.
+            </p>
+            {/* Aqui vai o construtor de fato */}
+          </div>
+        ) : (
+          <div className="mt-6">
+            <h2 className="text-lg font-semibold mb-2">📚 Conteúdo da Área de Membros</h2>
+            <p className="text-sm text-muted-foreground">
+              Bem-vindo! Aqui você verá os módulos, vídeos e materiais do projeto.
+            </p>
+            {/* Aqui vai o conteúdo liberado para alunos */}
+          </div>
+        )}
       </main>
     </div>
   );
