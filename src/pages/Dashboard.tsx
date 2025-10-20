@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, LogOut, FolderKanban, Sparkles } from "lucide-react";
+import { Plus, LogOut, FolderKanban, Sparkles, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 import type { User } from "@supabase/supabase-js";
@@ -85,13 +85,16 @@ const Dashboard = () => {
     e.preventDefault();
     try {
       const {
+        data,
         error
       } = await sb.from("projects").insert([{
         name: newProject.name,
         description: newProject.description,
         owner_id: user?.id
-      }]);
+      }]).select().single();
+
       if (error) throw error;
+      
       toast.success("Projeto criado com sucesso!");
       setCreateDialogOpen(false);
       setNewProject({
@@ -107,6 +110,19 @@ const Dashboard = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");
+  };
+
+  const getMemberAreaUrl = (projectId: string) => {
+    return `${window.location.origin}/member/${projectId}`;
+  };
+
+  const copyMemberAreaUrl = (projectId: string) => {
+    navigator.clipboard.writeText(getMemberAreaUrl(projectId));
+    toast.success("Link copiado para a área de membros!");
+  };
+
+  const openMemberArea = (projectId: string) => {
+    window.open(getMemberAreaUrl(projectId), "_blank");
   };
 
   if (loading) {
@@ -199,7 +215,7 @@ const Dashboard = () => {
               </Button>
             </CardContent>
           </Card> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map(project => <Card key={project.id} className="shadow-card border-border/50 hover-lift cursor-pointer bg-gradient-to-br from-card to-muted/20" onClick={() => navigate(`/project/${project.id}`)}>
+            {projects.map(project => <Card key={project.id} className="shadow-card border-border/50 hover-lift cursor-pointer bg-gradient-to-br from-card to-muted/20">
                 <CardHeader>
                   <div className="flex items-start justify-between mb-2">
                     <div className="rounded-lg bg-primary/10 p-3">
@@ -215,8 +231,46 @@ const Dashboard = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-xs text-muted-foreground">
-                    Criado em {new Date(project.created_at).toLocaleDateString("pt-BR")}
+                  <div className="flex flex-col gap-2">
+                    <div className="text-xs text-muted-foreground">
+                      Criado em {new Date(project.created_at).toLocaleDateString("pt-BR")}
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          copyMemberAreaUrl(project.id);
+                        }}
+                        className="flex-1"
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        Copiar Link
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openMemberArea(project.id);
+                        }}
+                        className="flex-1 bg-gradient-primary hover:opacity-90"
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Acessar
+                      </Button>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/project/${project.id}`);
+                      }}
+                      className="w-full justify-start"
+                    >
+                      Gerenciar Projeto
+                    </Button>
                   </div>
                 </CardContent>
               </Card>)}

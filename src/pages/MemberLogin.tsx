@@ -20,17 +20,14 @@ const MemberLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [project, setProject] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [allProjects, setAllProjects] = useState<any[]>([]);
 
   const { branding, loading: loadingBranding } = useProjectBranding(projectId!);
 
   useEffect(() => {
-    console.log("MemberLogin: Componente montado, projectId:", projectId);
     if (projectId) {
       loadProject();
     } else {
       setError("ID do projeto não fornecido");
-      console.error("MemberLogin: ID do projeto não fornecido na URL.");
     }
   }, [projectId]);
 
@@ -43,46 +40,21 @@ const MemberLogin = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log("MemberLogin: Carregando projetos para validação...");
 
-      const { data: projectsData, error: projectsError } = await sb
-        .from("projects")
-        .select("*")
-        .limit(20);
-
-      if (projectsError) {
-        console.error("MemberLogin: Erro ao carregar projetos:", projectsError);
-        setError("Erro ao carregar projetos do banco de dados");
-        return;
-      }
-
-      setAllProjects(projectsData || []);
-      console.log("MemberLogin: Projetos carregados:", projectsData?.map(p => ({ id: p.id, name: p.name })));
-
-      const projectExists = projectsData?.some(p => p.id === projectId);
-      
-      if (!projectExists) {
-        console.error("MemberLogin: Projeto não encontrado com ID:", projectId);
-        setError("Projeto não encontrado. Verifique se o ID está correto ou se o projeto foi excluído.");
-        return;
-      }
-
+      // Verificar se o projeto existe
       const { data: projectData, error: projectError } = await sb
         .from("projects")
         .select("*")
         .eq("id", projectId)
         .single();
 
-      if (projectError) {
-        console.error("MemberLogin: Erro ao carregar projeto específico:", projectError);
-        setError("Erro ao carregar informações do projeto");
+      if (projectError || !projectData) {
+        setError("Área de membros não encontrada. Verifique se o link está correto ou se o projeto foi excluído.");
         return;
       }
 
       setProject(projectData);
-      console.log("MemberLogin: Projeto carregado com sucesso:", projectData.name);
     } catch (error) {
-      console.error("MemberLogin: Erro inesperado ao carregar projeto:", error);
       setError("Erro ao carregar informações do projeto");
     } finally {
       setLoading(false);
@@ -93,7 +65,6 @@ const MemberLogin = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    console.log("MemberLogin: Tentativa de login para email:", email);
 
     try {
       const { data: member, error } = await sb
@@ -104,22 +75,18 @@ const MemberLogin = () => {
         .single();
 
       if (error || !member) {
-        console.error("MemberLogin: Membro não encontrado ou erro na consulta:", error);
         toast.error("Email ou senha incorretos");
         setLoading(false);
         return;
       }
-      console.log("MemberLogin: Membro encontrado:", member.full_name);
 
       if (!member.is_active) {
-        console.warn("MemberLogin: Conta inativa para membro:", member.full_name);
         toast.error("Sua conta está inativa. Entre em contato com o administrador.");
         setLoading(false);
         return;
       }
 
       const passwordMatch = await bcrypt.compare(password, member.password_hash);
-      console.log("MemberLogin: Comparação de senha:", passwordMatch);
 
       if (!passwordMatch) {
         toast.error("Email ou senha incorretos");
@@ -135,13 +102,10 @@ const MemberLogin = () => {
         profile_photo_url: member.profile_photo_url
       };
       sessionStorage.setItem("member_session", JSON.stringify(memberSessionData));
-      console.log("MemberLogin: Sessão de membro armazenada:", memberSessionData);
 
       toast.success(`Bem-vindo, ${member.full_name}!`);
-      console.log("MemberLogin: Redirecionando para /member/:projectId/area");
       navigate(`/member/${projectId}/area`);
     } catch (error: any) {
-      console.error("MemberLogin: Erro durante o login:", error);
       toast.error("Erro ao fazer login");
     } finally {
       setLoading(false);
@@ -166,27 +130,13 @@ const MemberLogin = () => {
       <div className="min-h-screen flex items-center justify-center bg-[var(--member-background-color)]">
         <Card className="max-w-md mx-4 bg-[var(--member-container-color)] text-[var(--member-text-color)]">
           <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-bold mb-2">Erro: Projeto Não Encontrado</h2>
+            <h2 className="text-xl font-bold mb-2">Área de Membros Não Encontrada</h2>
             <p className="text-[var(--member-muted-text-color)] mb-4">
-              O ID do projeto fornecido na URL (`{projectId}`) não corresponde a nenhum projeto existente.
-              Por favor, verifique se o ID está correto ou se o projeto foi excluído.
+              {error}
             </p>
-            {allProjects.length > 0 && (
-              <div className="text-xs text-[var(--member-muted-text-color)] mb-4">
-                <p>Projetos disponíveis (primeiros 5):</p>
-                <ul className="text-left mt-1 list-disc list-inside">
-                  {allProjects.slice(0, 5).map(p => (
-                        <li key={p.id} className="text-xs">
-                          {p.name} (ID: {p.id})
-                        </li>
-                      ))}
-                </ul>
-                <p className="mt-2">Use um desses IDs na URL para acessar a área de membros.</p>
-              </div>
-            )}
             <div className="flex flex-col gap-2">
               <Button onClick={() => navigate("/dashboard")} className="w-full bg-[var(--member-button-color)] text-white">
-                Ir para o Dashboard (para criar ou ver projetos)
+                Ir para o Dashboard
               </Button>
               <Button 
                 onClick={() => navigate("/")} 
