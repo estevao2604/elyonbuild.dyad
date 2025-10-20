@@ -76,6 +76,7 @@ const Dashboard = () => {
       setProjects(data || []);
     } catch (error: any) {
       toast.error("Erro ao carregar projetos");
+      console.error("Erro ao carregar projetos:", error);
     } finally {
       setLoading(false);
     }
@@ -95,6 +96,7 @@ const Dashboard = () => {
 
       if (error) throw error;
       
+      console.log("Projeto criado com sucesso:", data);
       toast.success("Projeto criado com sucesso!");
       setCreateDialogOpen(false);
       setNewProject({
@@ -103,7 +105,8 @@ const Dashboard = () => {
       });
       loadProjects();
     } catch (error: any) {
-      toast.error("Erro ao criar projeto");
+      console.error("Erro ao criar projeto:", error);
+      toast.error("Erro ao criar projeto: " + error.message);
     }
   };
 
@@ -234,6 +237,9 @@ const Dashboard = () => {
                   <div className="flex flex-col gap-2">
                     <div className="text-xs text-muted-foreground">
                       Criado em {new Date(project.created_at).toLocaleDateString("pt-BR")}
+                    </div>
+                    <div className="text-xs text-muted-foreground break-all">
+                      ID: {project.id}
                     </div>
                     <div className="flex gap-2 mt-2">
                       <Button 

@@ -24,6 +24,7 @@ const MemberLogin = () => {
   const { branding, loading: loadingBranding } = useProjectBranding(projectId!);
 
   useEffect(() => {
+    console.log("Project ID da URL:", projectId);
     if (projectId) {
       loadProject();
     } else {
@@ -41,12 +42,16 @@ const MemberLogin = () => {
       setLoading(true);
       setError(null);
 
+      console.log("Buscando projeto com ID:", projectId);
+      
       // Verificar se o projeto existe
       const { data: projectData, error: projectError } = await sb
         .from("projects")
         .select("*")
         .eq("id", projectId)
         .single();
+
+      console.log("Resultado da busca:", { projectData, projectError });
 
       if (projectError || !projectData) {
         setError("Área de membros não encontrada. Verifique se o link está correto ou se o projeto foi excluído.");
@@ -55,6 +60,7 @@ const MemberLogin = () => {
 
       setProject(projectData);
     } catch (error) {
+      console.error("Erro ao carregar projeto:", error);
       setError("Erro ao carregar informações do projeto");
     } finally {
       setLoading(false);
@@ -106,6 +112,7 @@ const MemberLogin = () => {
       toast.success(`Bem-vindo, ${member.full_name}!`);
       navigate(`/member/${projectId}/area`);
     } catch (error: any) {
+      console.error("Erro ao fazer login:", error);
       toast.error("Erro ao fazer login");
     } finally {
       setLoading(false);
