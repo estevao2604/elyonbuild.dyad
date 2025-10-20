@@ -1,17 +1,16 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-export default function MemberLogin() {
-  const { id } = useParams()
-  const navigate = useNavigate()
+export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,7 +24,7 @@ export default function MemberLogin() {
     if (error) {
       alert(error.message)
     } else {
-      navigate(`/member/${id}/area`)
+      navigate('/dashboard')
     }
 
     setLoading(false)
@@ -35,9 +34,9 @@ export default function MemberLogin() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Login da Área de Membros</CardTitle>
+          <CardTitle>Login</CardTitle>
           <CardDescription>
-            Entre com suas credenciais para acessar a área de membros
+            Entre com suas credenciais para acessar sua área de membros
           </CardDescription>
         </CardHeader>
         <CardContent>
