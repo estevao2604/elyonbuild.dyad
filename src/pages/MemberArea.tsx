@@ -8,7 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LogOut, BookOpen, Video, FileText, Image as ImageIcon, CheckCircle, User, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { LogOut, BookOpen, Video, FileText, Image as ImageIcon, CheckCircle, User, ArrowRight } from "lucide-react";
 import MemberProfile from "@/components/member/MemberProfile";
 import LessonComments from "@/components/member/LessonComments";
 import { useProjectBranding } from "@/hooks/useProjectBranding";
@@ -48,7 +48,6 @@ const MemberArea = () => {
   const [loadingContent, setLoadingContent] = useState(true);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [activeTab, setActiveTab] = useState("modules");
-  const [showPublicContent, setShowPublicContent] = useState(false);
 
   const { branding, loading: loadingBranding, saveBranding } = useProjectBranding(projectId!);
 
@@ -133,40 +132,20 @@ const MemberArea = () => {
       setProject(projectData);
       console.log("MemberArea: Projeto carregado:", projectData.name);
 
-      // Atualizar último login apenas se não for acesso público
-      if (member && !member.email.includes("public_")) {
-        console.log("MemberArea: Atualizando último login do membro...");
-        await sb
-          .from("project_members")
-          .update({ last_login: new Date().toISOString() })
-          .eq("id", member.id);
-        console.log("MemberArea: Último login atualizado.");
-      }
+      console.log("MemberArea: Atualizando último login do membro...");
+      await sb
+        .from("project_members")
+        .update({ last_login: new Date().toISOString() })
+        .eq("id", member.id);
+      console.log("MemberArea: Último login atualizado.");
 
       console.log("MemberArea: Carregando acessos de módulo do membro...");
-      let moduleIds = [];
-      
-      // Se for acesso público, mostrar todos os módulos publicados
-      if (member && member.email.includes("public_")) {
-        console.log("MemberArea: Acesso público detectado, carregando todos os módulos publicados...");
-        const { data: publishedModules } = await sb
-          .from("modules")
-          .select("id")
-          .eq("project_id", projectId)
-          .eq("is_published", true);
-        
-        moduleIds = publishedModules?.map(m => m.id) || [];
-        setShowPublicContent(true);
-      } else if (member) {
-        // Acesso normal de membro
-        const { data: accessData } = await sb
-          .from("member_module_access")
-          .select("module_id")
-          .eq("member_id", member.id);
+      const { data: accessData } = await sb
+        .from("member_module_access")
+        .select("module_id")
+        .eq("member_id", member.id);
 
-        moduleIds = accessData?.map(a => a.module_id) || [];
-      }
-
+      const moduleIds = accessData?.map(a => a.module_id) || [];
       console.log("MemberArea: Módulos com acesso:", moduleIds);
 
       if (moduleIds.length > 0) {
@@ -210,19 +189,14 @@ const MemberArea = () => {
         setLessons({}); // Garante que a lista de aulas esteja vazia
       }
 
-      // Carregar progresso apenas para membros registrados
-      if (member && !member.email.includes("public_")) {
-        console.log("MemberArea: Carregando progresso das aulas...");
-        const { data: progressData } = await sb
-          .from("lesson_progress")
-          .select("lesson_id, completed")
-          .eq("member_id", member.id);
+      console.log("MemberArea: Carregando progresso das aulas...");
+      const { data: progressData } = await sb
+        .from("lesson_progress")
+        .select("lesson_id, completed")
+        .eq("member_id", member.id);
 
-        setProgress(progressData || []);
-        console.log("MemberArea: Progresso carregado:", progressData?.length);
-      } else {
-        setProgress([]); // Sem progresso para acesso público
-      }
+      setProgress(progressData || []);
+      console.log("MemberArea: Progresso carregado:", progressData?.length);
     } catch (error) {
       console.error("MemberArea: Erro ao carregar dados da área de membros:", error);
       toast.error("Erro ao carregar conteúdo");
@@ -240,12 +214,6 @@ const MemberArea = () => {
   };
 
   const toggleLessonCompletion = async (lessonId: string, currentStatus: boolean) => {
-    // Não permitir marcação de progresso em acesso público
-    if (showPublicContent) {
-      toast.info("Faça login para marcar aulas como concluídas");
-      return;
-    }
-
     console.log(`MemberArea: Alternando conclusão da aula ${lessonId}. Status atual: ${currentStatus}`);
     try {
       if (currentStatus) {
@@ -375,38 +343,21 @@ const MemberArea = () => {
               </div>
 
               <div className="flex items-center gap-4">
-                {showPublicContent && (
-                  <div className="flex items-center gap-2 bg-[var(--member-primary-color)]/20 px-3 py-1 rounded-full">
-                    <Eye className="h-4 w-4 text-[var(--member-primary-color)]" />
-                    <span className="text-sm text-[var(--member-primary-color)]">Acesso Público</span>
-                  </div>
-                )}
-                {member && (
-                  <button
-                    onClick={() => setActiveTab("profile")}
-                    className="flex items-center gap-2 hover:opacity-80 transition-smooth"
-                  >
-                    <Avatar className="h-9 w-9 border-2 border-[var(--member-primary-color)]">
-                      <AvatarImage 
-                        src={member?.profile_photo_url} 
-                        alt={member?.full_name}
-                      />
-                      <AvatarFallback className="font-semibold bg-[var(--member-primary-color)] text-[var(--member-text-color)]">
-                        {member?.full_name?.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </button>
-                )}
-                {member && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleLogout}
-                    className="text-[var(--member-header-text-color)] hover:bg-[var(--member-header-background-color)]/80"
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                )}
+                {/* Removed Dark Mode Toggle */}
+                <button
+                  onClick={() => setActiveTab("profile")}
+                  className="flex items-center gap-2 hover:opacity-80 transition-smooth"
+                >
+                  <Avatar className="h-9 w-9 border-2 border-[var(--member-primary-color)]">
+                    <AvatarImage 
+                      src={member?.profile_photo_url} 
+                      alt={member?.full_name}
+                    />
+                    <AvatarFallback className="font-semibold bg-[var(--member-primary-color)] text-[var(--member-text-color)]">
+                      {member?.full_name?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
               </div>
             </div>
           </div>
@@ -418,28 +369,22 @@ const MemberArea = () => {
             <TabsList className="mb-8 bg-[var(--member-container-color)] text-[var(--member-text-color)]">
               <TabsTrigger value="modules" className="gap-2 text-[var(--member-text-color)]">
                 <BookOpen className="h-4 w-4" />
-                {showPublicContent ? "Conteúdo Público" : "Meus Módulos"}
+                Meus Módulos
               </TabsTrigger>
-              {member && !member.email.includes("public_") && (
-                <TabsTrigger value="profile" className="gap-2 text-[var(--member-text-color)]">
-                  <User className="h-4 w-4" />
-                  Meu Perfil
-                </TabsTrigger>
-              )}
+              <TabsTrigger value="profile" className="gap-2 text-[var(--member-text-color)]">
+                <User className="h-4 w-4" />
+                Meu Perfil
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="modules">
               {/* Welcome Section */}
               <div className="mb-8">
                 <h2 className="text-2xl md:text-3xl font-bold mb-2 text-[var(--member-text-color)]">
-                  {showPublicContent 
-                    ? "Conteúdo Público Disponível" 
-                    : `Olá, ${member?.full_name?.split(' ')[0]}!`}
+                  Olá, {member?.full_name?.split(' ')[0]}!
                 </h2>
                 <p className="text-[var(--member-muted-text-color)]">
-                  {showPublicContent 
-                    ? "Aproveite o conteúdo disponível publicamente nesta área de membros" 
-                    : "Bem-vindo(a) à sua área de membros"}
+                  Bem-vindo(a) à sua área de membros
                 </p>
               </div>
 
@@ -449,9 +394,7 @@ const MemberArea = () => {
                   <CardContent className="flex flex-col items-center justify-center py-16">
                     <BookOpen className="h-16 w-16 mb-4 text-[var(--member-muted-text-color)]" />
                     <p className="text-center text-[var(--member-muted-text-color)]">
-                      {showPublicContent 
-                        ? "Nenhum conteúdo público disponível ainda" 
-                        : "Nenhum módulo disponível ainda"}
+                      Nenhum módulo disponível ainda
                     </p>
                   </CardContent>
                 </Card>
@@ -481,26 +424,24 @@ const MemberArea = () => {
                           <CardTitle className="text-2xl md:text-3xl mb-2 text-[var(--member-card-text-color)]">{selectedLesson.title}</CardTitle>
                           <CardDescription className="text-base text-[var(--member-muted-text-color)]">{selectedLesson.description}</CardDescription>
                         </div>
-                        {!showPublicContent && (
-                          <Button
-                            size="lg"
-                            onClick={() =>
-                              toggleLessonCompletion(
-                                selectedLesson.id,
-                                isLessonCompleted(selectedLesson.id)
-                              )
-                            }
-                            className="w-full md:w-auto"
-                            style={{ 
-                              backgroundColor: isLessonCompleted(selectedLesson.id) ? 'var(--member-primary-color)' : 'var(--member-button-color)', 
-                              color: 'white',
-                              opacity: isLessonCompleted(selectedLesson.id) ? 1 : 0.8
-                            }}
-                          >
-                            <CheckCircle className="h-5 w-5 mr-2" />
-                            {isLessonCompleted(selectedLesson.id) ? "Concluído" : "Marcar como concluído"}
-                          </Button>
-                        )}
+                        <Button
+                          size="lg"
+                          onClick={() =>
+                            toggleLessonCompletion(
+                              selectedLesson.id,
+                              isLessonCompleted(selectedLesson.id)
+                            )
+                          }
+                          className="w-full md:w-auto"
+                          style={{ 
+                            backgroundColor: isLessonCompleted(selectedLesson.id) ? 'var(--member-primary-color)' : 'var(--member-button-color)', 
+                            color: 'white',
+                            opacity: isLessonCompleted(selectedLesson.id) ? 1 : 0.8
+                          }}
+                        >
+                          <CheckCircle className="h-5 w-5 mr-2" />
+                          {isLessonCompleted(selectedLesson.id) ? "Concluído" : "Marcar como concluído"}
+                        </Button>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
@@ -516,14 +457,12 @@ const MemberArea = () => {
                         </div>
                       )}
 
-                      {/* Comentários - apenas para membros registrados */}
-                      {!showPublicContent && member && (
-                        <LessonComments
-                          lessonId={selectedLesson.id}
-                          memberId={member.id}
-                          moduleId={selectedLesson.module_id}
-                        />
-                      )}
+                      {/* Comentários */}
+                      <LessonComments
+                        lessonId={selectedLesson.id}
+                        memberId={member.id}
+                        moduleId={selectedLesson.module_id}
+                      />
                     </CardContent>
                   </Card>
                 </div>
@@ -532,9 +471,7 @@ const MemberArea = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {modules.map((module) => {
                     const moduleLessons = lessons[module.id] || [];
-                    const completedCount = showPublicContent 
-                      ? 0 
-                      : moduleLessons.filter(l => isLessonCompleted(l.id)).length;
+                    const completedCount = moduleLessons.filter(l => isLessonCompleted(l.id)).length;
                     
                     return (
                       <Card
@@ -572,7 +509,7 @@ const MemberArea = () => {
                                 <BookOpen className="h-4 w-4" />
                                 <span>{moduleLessons.length} aula{moduleLessons.length !== 1 ? 's' : ''}</span>
                               </div>
-                              {!showPublicContent && completedCount > 0 && (
+                              {completedCount > 0 && (
                                 <div className="flex items-center gap-1 text-[var(--member-primary-color)]">
                                   <CheckCircle className="h-4 w-4" />
                                   <span>{completedCount} concluída{completedCount !== 1 ? 's' : ''}</span>
@@ -591,7 +528,7 @@ const MemberArea = () => {
                             }}
                             disabled={moduleLessons.length === 0}
                           >
-                            {showPublicContent ? "Ver Conteúdo" : "Acessar Módulo"}
+                            Acessar Módulo
                             <ArrowRight className="h-4 w-4" />
                           </Button>
                         </CardContent>
@@ -602,11 +539,9 @@ const MemberArea = () => {
               )}
             </TabsContent>
 
-            {member && !member.email.includes("public_") && (
-              <TabsContent value="profile">
-                <MemberProfile memberId={member?.id} projectId={projectId!} />
-              </TabsContent>
-            )}
+            <TabsContent value="profile">
+              <MemberProfile memberId={member?.id} projectId={projectId!} />
+            </TabsContent>
           </Tabs>
         </div>
       </div>
