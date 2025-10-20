@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Plus, Trash2, Mail, Shield, CheckCircle, XCircle, Key, ExternalLink } from "lucide-react";
+import { Users, Plus, Trash2, Mail, Shield, CheckCircle, XCircle, Key, ExternalLink, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import bcrypt from "bcryptjs";
 import AccessManagementDialog from "./AccessManagementDialog";
@@ -32,6 +32,7 @@ const MembersTab = ({ projectId, projectName }: MembersTabProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [accessDialogOpen, setAccessDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [publicAccessEnabled, setPublicAccessEnabled] = useState(false);
 
   const [newMember, setNewMember] = useState({
     email: "",
@@ -42,7 +43,23 @@ const MembersTab = ({ projectId, projectName }: MembersTabProps) => {
 
   useEffect(() => {
     loadMembers();
+    checkPublicAccess();
   }, [projectId]);
+
+  const checkPublicAccess = async () => {
+    try {
+      // Verificar se há módulos publicados
+      const { data: publishedModules } = await sb
+        .from("modules")
+        .select("id")
+        .eq("project_id", projectId)
+        .eq("is_published", true);
+
+      setPublicAccessEnabled(publishedModules && publishedModules.length > 0);
+    } catch (error) {
+      console.error("Erro ao verificar acesso público:", error);
+    }
+  };
 
   const loadMembers = async () => {
     try {
@@ -50,6 +67,7 @@ const MembersTab = ({ projectId, projectName }: MembersTabProps) => {
         .from("project_members")
         .select("*")
         .eq("project_id", projectId)
+        .not("email", "ilike", "public_%") // Excluir membros públicos
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -257,7 +275,7 @@ const MembersTab = ({ projectId, projectName }: MembersTabProps) => {
 
       <Card className="shadow-card border-border/50">
         <CardHeader>
-          <CardTitle>URL de Acesso dos Membros</CardTitle>
+          <CardTitle>URL de Acesso da Área de Membros</CardTitle>
           <CardDescription>
             Compartilhe esta URL com seus membros para que eles possam acessar a área
           </CardDescription>
@@ -277,6 +295,28 @@ const MembersTab = ({ projectId, projectName }: MembersTabProps) => {
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Acessar Área
               </Button>
+            </div>
+          </div>
+          
+          <div className="mt-4 pt-4 border-t border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {publicAccessEnabled ? (
+                  <Eye className="h-5 w-5 text-green-500" />
+                ) : (
+                  <EyeOff className="h-5 w-5 text-muted-foreground" />
+                )}
+                <span className="font-medium">
+                  {publicAccessEnabled 
+                    ? "Acesso público habilitado" 
+                    : "Acesso público desabilitado"}
+                </span>
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {publicAccessEnabled 
+                  ? "Visitantes podem acessar conteúdo público" 
+                  : "Publique módulos para habilitar acesso público"}
+              </span>
             </div>
           </div>
         </CardContent>
