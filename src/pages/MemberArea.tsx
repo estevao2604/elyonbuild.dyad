@@ -1,249 +1,552 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { supabase } from '@/integrations/supabase/client'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { LogOut, BookOpen, User, Settings } from 'lucide-react'
-
-interface Project {
-  id: string
-  name: string
-  description: string
-}
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { sb } from "@/integrations/supabase/sb";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { LogOut, BookOpen, Video, FileText, Image as ImageIcon, CheckCircle, User, ArrowRight } from "lucide-react";
+import MemberProfile from "@/components/member/MemberProfile";
+import LessonComments from "@/components/member/LessonComments";
+import { useProjectBranding } from "@/hooks/useProjectBranding";
 
 interface Module {
-  id: string
-  title: string
-  description: string
-  display_order: number
+  id: string;
+  title: string;
+  description: string;
+  banner_url: string | null;
+  display_order: number;
 }
 
 interface Lesson {
-  id: string
-  module_id: string
-  title: string
-  description: string
-  content_type: string
-  duration_minutes: number | null
+  id: string;
+  module_id: string;
+  title: string;
+  description: string;
+  content: string | null;
+  content_type: string;
+  file_url: string | null;
+  duration_minutes: number | null;
 }
 
-export default function MemberArea() {
-  const { id } = useParams()
-  const navigate = useNavigate()
-  const [project, setProject] = useState<Project | null>(null)
-  const [modules, setModules] = useState<Module[]>([])
-  const [lessons, setLessons] = useState<Lesson[]>([])
-  const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState('modules')
+interface LessonProgress {
+  lesson_id: string;
+  completed: boolean;
+}
+
+const MemberArea = () => {
+  const { projectId } = useParams();
+  const navigate = useNavigate();
+  const [member, setMember] = useState<any>(null);
+  const [project, setProject] = useState<any>(null);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [lessons, setLessons] = useState<{ [key: string]: Lesson[] }>({});
+  const [progress, setProgress] = useState<LessonProgress[]>([]);
+  const [loadingContent, setLoadingContent] = useState(true);
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [activeTab, setActiveTab] = useState("modules");
+
+  const { branding, loading: loadingBranding, saveBranding } = useProjectBranding(projectId!);
 
   useEffect(() => {
-    checkAuth()
-    if (id) {
-      fetchProjectData(id)
-    }
-  }, [id])
+    console.log("MemberArea: Componente montado, verificando sessão...");
+    checkMemberSession();
+  }, [projectId]);
 
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (!session) {
-      navigate(`/member/${id}/login`)
+  useEffect(() => {
+    if (member) {
+      console.log("MemberArea: Membro detectado, carregando dados da área...");
+      loadData();
     } else {
-      setUser(session.user)
+      console.log("MemberArea: Nenhum membro na sessão, aguardando...");
     }
-  }
+  }, [member]);
 
-  const fetchProjectData = async (projectId: string) => {
+  const checkMemberSession = async () => {
+    console.log("MemberArea: Executando checkMemberSession...");
+    const session = sessionStorage.getItem("member_session");
+    if (!session) {
+      console.log("MemberArea: Nenhuma sessão encontrada, redirecionando para login.");
+      navigate(`/member/${projectId}`);
+      return;
+    }
+
+    const memberData = JSON.parse(session);
+    console.log("MemberArea: Sessão encontrada:", memberData);
+
+    if (memberData.project_id !== projectId) {
+      console.warn("MemberArea: ID do projeto na sessão não corresponde ao ID da URL, redirecionando.");
+      sessionStorage.removeItem("member_session"); // Limpa sessão inválida
+      navigate(`/member/${projectId}`);
+      return;
+    }
+
     try {
-      // Fetch project
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single()
+      console.log("MemberArea: Tentando recarregar dados do membro do DB...");
+      const { data: updatedMember } = await sb
+        .from("project_members")
+        .select("*")
+        .eq("id", memberData.id)
+        .maybeSingle();
 
-      if (projectError) throw projectError
-      setProject(projectData)
-
-      // Fetch modules the member has access to
-      const { data: accessData, error: accessError } = await supabase
-        .from('member_module_access')
-        .select('module_id')
-        .eq('member_id', (await supabase.auth.getUser()).data.user?.id)
-
-      if (accessError) throw accessError
-
-      const moduleIds = accessData?.map(a => a.module_id) || []
-      
-      if (moduleIds.length > 0) {
-        // Fetch modules
-        const { data: modulesData, error: modulesError } = await supabase
-          .from('modules')
-          .select('*')
-          .in('id', moduleIds)
-          .eq('is_published', true)
-          .order('display_order', { ascending: true })
-
-        if (modulesError) throw modulesError
-        setModules(modulesData || [])
-
-        // Fetch lessons
-        const { data: lessonsData, error: lessonsError } = await supabase
-          .from('lessons')
-          .select('*')
-          .in('module_id', moduleIds)
-          .eq('is_published', true)
-          .order('display_order', { ascending: true })
-
-        if (lessonsError) throw lessonsError
-        setLessons(lessonsData || [])
+      if (updatedMember) {
+        const updatedSession = {
+          ...memberData,
+          profile_photo_url: updatedMember.profile_photo_url,
+          full_name: updatedMember.full_name,
+          email: updatedMember.email
+        };
+        sessionStorage.setItem("member_session", JSON.stringify(updatedSession));
+        setMember(updatedSession);
+        console.log("MemberArea: Dados do membro atualizados e sessão recarregada.");
+      } else {
+        setMember(memberData);
+        console.log("MemberArea: Membro não encontrado no DB, usando dados da sessão.");
       }
     } catch (error) {
-      console.error('Erro ao buscar dados do projeto:', error)
-    } finally {
-      setLoading(false)
+      console.error("MemberArea: Erro ao recarregar dados do membro:", error);
+      setMember(memberData); // Continua com os dados da sessão mesmo com erro
     }
-  }
+  };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    navigate(`/member/${id}/login`)
-  }
+  const loadData = async () => {
+    console.log("MemberArea: Executando loadData...");
+    try {
+      setLoadingContent(true);
 
-  if (loading) {
+      console.log("MemberArea: Carregando dados do projeto...");
+      const { data: projectData, error: projectError } = await sb
+        .from("projects")
+        .select("*")
+        .eq("id", projectId)
+        .single();
+
+      if (projectError) {
+        console.error("MemberArea: Erro ao carregar projeto:", projectError);
+        toast.error("Projeto não encontrado");
+        return;
+      }
+      setProject(projectData);
+      console.log("MemberArea: Projeto carregado:", projectData.name);
+
+      console.log("MemberArea: Atualizando último login do membro...");
+      await sb
+        .from("project_members")
+        .update({ last_login: new Date().toISOString() })
+        .eq("id", member.id);
+      console.log("MemberArea: Último login atualizado.");
+
+      console.log("MemberArea: Carregando acessos de módulo do membro...");
+      const { data: accessData } = await sb
+        .from("member_module_access")
+        .select("module_id")
+        .eq("member_id", member.id);
+
+      const moduleIds = accessData?.map(a => a.module_id) || [];
+      console.log("MemberArea: Módulos com acesso:", moduleIds);
+
+      if (moduleIds.length > 0) {
+        console.log("MemberArea: Carregando módulos publicados...");
+        const { data: modulesData, error: modulesError } = await sb
+          .from("modules")
+          .select("*")
+          .in("id", moduleIds)
+          .eq("is_published", true)
+          .order("display_order", { ascending: true });
+
+        if (modulesError) {
+          console.error("MemberArea: Erro ao carregar módulos:", modulesError);
+        } else {
+          setModules(modulesData || []);
+          console.log("MemberArea: Módulos carregados:", modulesData?.length);
+
+          for (const module of modulesData || []) {
+            console.log(`MemberArea: Carregando aulas para o módulo ${module.title} (${module.id})...`);
+            const { data: lessonsData, error: lessonsError } = await sb
+              .from("lessons")
+              .select("*")
+              .eq("module_id", module.id)
+              .eq("is_published", true)
+              .order("display_order", { ascending: true });
+
+            if (lessonsError) {
+              console.error(`MemberArea: Erro ao carregar aulas para o módulo ${module.id}:`, lessonsError);
+            } else {
+              setLessons(prev => ({
+                ...prev,
+                [module.id]: lessonsData || []
+              }));
+              console.log(`MemberArea: Aulas carregadas para o módulo ${module.id}:`, lessonsData?.length);
+            }
+          }
+        }
+      } else {
+        console.log("MemberArea: Nenhum acesso a módulo encontrado para o membro.");
+        setModules([]); // Garante que a lista de módulos esteja vazia
+        setLessons({}); // Garante que a lista de aulas esteja vazia
+      }
+
+      console.log("MemberArea: Carregando progresso das aulas...");
+      const { data: progressData } = await sb
+        .from("lesson_progress")
+        .select("lesson_id, completed")
+        .eq("member_id", member.id);
+
+      setProgress(progressData || []);
+      console.log("MemberArea: Progresso carregado:", progressData?.length);
+    } catch (error) {
+      console.error("MemberArea: Erro ao carregar dados da área de membros:", error);
+      toast.error("Erro ao carregar conteúdo");
+    } finally {
+      setLoadingContent(false);
+      console.log("MemberArea: Carregamento de conteúdo finalizado.");
+    }
+  };
+
+  const handleLogout = () => {
+    console.log("MemberArea: Realizando logout...");
+    sessionStorage.removeItem("member_session");
+    navigate(`/member/${projectId}`);
+    toast.success("Logout realizado com sucesso");
+  };
+
+  const toggleLessonCompletion = async (lessonId: string, currentStatus: boolean) => {
+    console.log(`MemberArea: Alternando conclusão da aula ${lessonId}. Status atual: ${currentStatus}`);
+    try {
+      if (currentStatus) {
+        await sb
+          .from("lesson_progress")
+          .delete()
+          .eq("member_id", member.id)
+          .eq("lesson_id", lessonId);
+        console.log(`MemberArea: Aula ${lessonId} marcada como não concluída.`);
+      } else {
+        await sb
+          .from("lesson_progress")
+          .upsert({
+            member_id: member.id,
+            lesson_id: lessonId,
+            completed: true,
+            completed_at: new Date().toISOString(),
+          });
+        console.log(`MemberArea: Aula ${lessonId} marcada como concluída.`);
+      }
+
+      setProgress(prev => {
+        const filtered = prev.filter(p => p.lesson_id !== lessonId);
+        if (!currentStatus) {
+          return [...filtered, { lesson_id: lessonId, completed: true }];
+        }
+        return filtered;
+      });
+
+      toast.success(currentStatus ? "Marcado como não concluído" : "Marcado como concluído");
+    } catch (error) {
+      console.error("MemberArea: Erro ao atualizar progresso:", error);
+      toast.error("Erro ao atualizar progresso");
+    }
+  };
+
+  const isLessonCompleted = (lessonId: string) => {
+    return progress.some(p => p.lesson_id === lessonId && p.completed);
+  };
+
+  const getContentIcon = (type: string) => {
+    switch (type) {
+      case "video":
+        return <Video className="h-5 w-5" />;
+      case "pdf":
+        return <FileText className="h-5 w-5" />;
+      case "image":
+        return <ImageIcon className="h-5 w-5" />;
+      default:
+        return <FileText className="h-5 w-5" />;
+    }
+  };
+
+  const renderFilePreview = (lesson: Lesson) => {
+    if (!lesson.file_url) return null;
+
+    switch (lesson.content_type) {
+      case "video":
+        return (
+          <video
+            controls
+            className="w-full rounded-lg shadow-lg"
+            src={lesson.file_url}
+          >
+            Seu navegador não suporta o elemento de vídeo.
+          </video>
+        );
+      case "pdf":
+        return (
+          <iframe
+            src={lesson.file_url}
+            className="w-full h-[600px] rounded-lg shadow-lg"
+            title={lesson.title}
+          />
+        );
+      case "image":
+        return (
+          <img
+            src={lesson.file_url}
+            alt={lesson.title}
+            className="w-full rounded-lg shadow-lg object-contain max-h-[600px]"
+          />
+        );
+      default:
+        return (
+          <a
+            href={lesson.file_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+            style={{ color: 'var(--member-primary-color)' }}
+          >
+            Baixar arquivo
+          </a>
+        );
+    }
+  };
+
+  const logoUrl = branding?.custom_logo_url || project?.logo_url;
+
+  if (loadingContent || loadingBranding) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--member-background-color)]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--member-primary-color)]"></div>
       </div>
-    )
-  }
-
-  if (!project) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Área de Membros Não Encontrada</h1>
-          <p className="text-gray-600 mb-6">O projeto solicitado não existe ou foi removido.</p>
-          <Button onClick={() => navigate('/')}>
-            Voltar para o início
-          </Button>
-        </div>
-      </div>
-    )
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold">{project.name}</h1>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Avatar>
-                <AvatarImage src={user?.user_metadata?.avatar_url} />
-                <AvatarFallback>
-                  {user?.email?.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-sm text-gray-600">
-                {user?.email}
-              </span>
-            </div>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sair
-            </Button>
-          </div>
-        </div>
-      </header>
+    <div className={`min-h-screen`}>
+      <div className="min-h-screen transition-colors bg-[var(--member-background-color)] text-[var(--member-text-color)]">
+        {/* Header */}
+        <header 
+          className="border-b border-border backdrop-blur-sm sticky top-0 z-50 bg-[var(--member-header-background-color)] text-[var(--member-header-text-color)]"
+        >
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                {logoUrl && (
+                  <img
+                    src={logoUrl}
+                    alt={project?.name || "Logo"}
+                    className="h-10 w-10 object-contain"
+                  />
+                )}
+                <h1 className="text-xl font-bold hidden md:block text-[var(--member-header-text-color)]">{project?.name || "Área de Membros"}</h1>
+              </div>
 
-      <main className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="modules" className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              Módulos
-            </TabsTrigger>
-            <TabsTrigger value="profile" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Perfil
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Configurações
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="modules">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-              {modules.map((module) => {
-                const moduleLessons = lessons.filter(l => l.module_id === module.id)
-                return (
-                  <Card key={module.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <CardTitle>{module.title}</CardTitle>
-                      <CardDescription>{module.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-gray-600 mb-4">
-                        {moduleLessons.length} aula{moduleLessons.length !== 1 ? 's' : ''}
-                      </p>
-                      <Button className="w-full">
-                        Acessar Módulo
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="profile">
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Meu Perfil</CardTitle>
-                <CardDescription>
-                  Gerencie suas informações pessoais
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4 mb-6">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage src={user?.user_metadata?.avatar_url} />
-                    <AvatarFallback className="text-2xl">
-                      {user?.email?.charAt(0).toUpperCase()}
+              <div className="flex items-center gap-4">
+                {/* Removed Dark Mode Toggle */}
+                <button
+                  onClick={() => setActiveTab("profile")}
+                  className="flex items-center gap-2 hover:opacity-80 transition-smooth"
+                >
+                  <Avatar className="h-9 w-9 border-2 border-[var(--member-primary-color)]">
+                    <AvatarImage 
+                      src={member?.profile_photo_url} 
+                      alt={member?.full_name}
+                    />
+                    <AvatarFallback className="font-semibold bg-[var(--member-primary-color)] text-[var(--member-text-color)]">
+                      {member?.full_name?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <h3 className="text-xl font-semibold">{user?.email}</h3>
-                    <p className="text-gray-600">Membro</p>
-                  </div>
-                </div>
-                <Button>Editar Perfil</Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
 
-          <TabsContent value="settings">
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Configurações</CardTitle>
-                <CardDescription>
-                  Configure suas preferências da área de membros
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Configurações da área de membros serão implementadas aqui.
+        {/* Main Content */}
+        <div className="container mx-auto px-4 py-8 text-[var(--member-text-color)]">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="mb-8 bg-[var(--member-container-color)] text-[var(--member-text-color)]">
+              <TabsTrigger value="modules" className="gap-2 text-[var(--member-text-color)]">
+                <BookOpen className="h-4 w-4" />
+                Meus Módulos
+              </TabsTrigger>
+              <TabsTrigger value="profile" className="gap-2 text-[var(--member-text-color)]">
+                <User className="h-4 w-4" />
+                Meu Perfil
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="modules">
+              {/* Welcome Section */}
+              <div className="mb-8">
+                <h2 className="text-2xl md:text-3xl font-bold mb-2 text-[var(--member-text-color)]">
+                  Olá, {member?.full_name?.split(' ')[0]}!
+                </h2>
+                <p className="text-[var(--member-muted-text-color)]">
+                  Bem-vindo(a) à sua área de membros
                 </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
+              </div>
+
+              {/* Modules Grid */}
+              {modules.length === 0 ? (
+                <Card className="shadow-sm bg-[var(--member-container-color)]">
+                  <CardContent className="flex flex-col items-center justify-center py-16">
+                    <BookOpen className="h-16 w-16 mb-4 text-[var(--member-muted-text-color)]" />
+                    <p className="text-center text-[var(--member-muted-text-color)]">
+                      Nenhum módulo disponível ainda
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : selectedLesson ? (
+                // Lesson View
+                <div className="space-y-4">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setSelectedLesson(null)}
+                    className="mb-4 text-[var(--member-text-color)]"
+                  >
+                    ← Voltar para módulos
+                  </Button>
+                  <Card className="shadow-sm bg-[var(--member-container-color)]">
+                    {modules.find(m => m.id === selectedLesson.module_id)?.banner_url && (
+                      <div className="aspect-[3/1] overflow-hidden rounded-t-lg">
+                        <img
+                          src={modules.find(m => m.id === selectedLesson.module_id)?.banner_url!}
+                          alt="Banner"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <CardHeader>
+                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                        <div className="flex-1">
+                          <CardTitle className="text-2xl md:text-3xl mb-2 text-[var(--member-card-text-color)]">{selectedLesson.title}</CardTitle>
+                          <CardDescription className="text-base text-[var(--member-muted-text-color)]">{selectedLesson.description}</CardDescription>
+                        </div>
+                        <Button
+                          size="lg"
+                          onClick={() =>
+                            toggleLessonCompletion(
+                              selectedLesson.id,
+                              isLessonCompleted(selectedLesson.id)
+                            )
+                          }
+                          className="w-full md:w-auto"
+                          style={{ 
+                            backgroundColor: isLessonCompleted(selectedLesson.id) ? 'var(--member-primary-color)' : 'var(--member-button-color)', 
+                            color: 'white',
+                            opacity: isLessonCompleted(selectedLesson.id) ? 1 : 0.8
+                          }}
+                        >
+                          <CheckCircle className="h-5 w-5 mr-2" />
+                          {isLessonCompleted(selectedLesson.id) ? "Concluído" : "Marcar como concluído"}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {renderFilePreview(selectedLesson)}
+                      
+                      {selectedLesson.content && (
+                        <div className="mt-6 p-6 rounded-lg bg-[var(--member-background-color)]">
+                          <h3 className="font-semibold mb-3 text-lg text-[var(--member-card-text-color)]">Conteúdo Adicional</h3>
+                          <div
+                            className="prose prose-sm max-w-none dark:prose-invert text-[var(--member-text-color)]"
+                            dangerouslySetInnerHTML={{ __html: selectedLesson.content }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Comentários */}
+                      <LessonComments
+                        lessonId={selectedLesson.id}
+                        memberId={member.id}
+                        moduleId={selectedLesson.module_id}
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                // Modules Grid - Novo Layout
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {modules.map((module) => {
+                    const moduleLessons = lessons[module.id] || [];
+                    const completedCount = moduleLessons.filter(l => isLessonCompleted(l.id)).length;
+                    
+                    return (
+                      <Card
+                        key={module.id}
+                        className="overflow-hidden hover:shadow-xl transition-all border-border/50 group flex flex-col bg-[var(--member-container-color)]"
+                      >
+                        {/* Banner */}
+                        {module.banner_url && (
+                          <div className="aspect-video w-full overflow-hidden bg-muted">
+                            <img
+                              src={module.banner_url}
+                              alt={module.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          </div>
+                        )}
+
+                        {/* Content */}
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-xl line-clamp-2 text-[var(--member-card-text-color)]">
+                            {module.title}
+                          </CardTitle>
+                          {module.description && (
+                            <CardDescription className="mt-2 line-clamp-3 text-[var(--member-muted-text-color)]">
+                              {module.description}
+                            </CardDescription>
+                          )}
+                        </CardHeader>
+
+                        <CardContent className="flex-1 flex flex-col justify-between space-y-4">
+                          {/* Stats */}
+                          {moduleLessons.length > 0 && (
+                            <div className="flex items-center gap-4 text-sm text-[var(--member-muted-text-color)]">
+                              <div className="flex items-center gap-1">
+                                <BookOpen className="h-4 w-4" />
+                                <span>{moduleLessons.length} aula{moduleLessons.length !== 1 ? 's' : ''}</span>
+                              </div>
+                              {completedCount > 0 && (
+                                <div className="flex items-center gap-1 text-[var(--member-primary-color)]">
+                                  <CheckCircle className="h-4 w-4" />
+                                  <span>{completedCount} concluída{completedCount !== 1 ? 's' : ''}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Action Button */}
+                          <Button
+                            className="w-full gap-2 group-hover:gap-3 transition-all bg-[var(--member-button-color)] text-white"
+                            size="lg"
+                            onClick={() => {
+                              const firstLesson = moduleLessons[0];
+                              if (firstLesson) setSelectedLesson(firstLesson);
+                            }}
+                            disabled={moduleLessons.length === 0}
+                          >
+                            Acessar Módulo
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="profile">
+              <MemberProfile memberId={member?.id} projectId={projectId!} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
-  )
-}
+  );
+};
+
+export default MemberArea;
