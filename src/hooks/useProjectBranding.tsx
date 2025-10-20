@@ -4,8 +4,8 @@ import { toast } from "sonner";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
 interface Branding {
-  id?: string; // Keep id as optional for initial state, but expect it from DB
-  project_id: string; // Added project_id to the interface
+  id?: string;
+  project_id: string;
   custom_logo_url: string | null;
   primary_color: string;
   secondary_color: string;
@@ -18,10 +18,10 @@ interface Branding {
   header_text_color: string | null;
   card_text_color: string | null;
   muted_text_color: string | null;
-  dark_mode: boolean | null; // Adicionado de volta para corresponder ao types.ts
+  dark_mode: boolean | null;
 }
 
-const defaultBranding: Omit<Branding, 'project_id'> = { // Omit project_id from default as it's set dynamically
+const defaultBranding: Omit<Branding, 'project_id'> = {
   custom_logo_url: null,
   primary_color: "#D4AF37",
   secondary_color: "#FFD700",
@@ -34,7 +34,7 @@ const defaultBranding: Omit<Branding, 'project_id'> = { // Omit project_id from 
   header_text_color: "#F1F5F9",
   card_text_color: "#F1F5F9",
   muted_text_color: "#A0A0A0",
-  dark_mode: false, // Adicionado de volta
+  dark_mode: false,
 };
 
 export function useProjectBranding(projectId: string) {
