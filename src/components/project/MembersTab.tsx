@@ -176,7 +176,9 @@ const MembersTab = ({ projectId, projectName }: MembersTabProps) => {
   };
 
   const getMemberLoginUrl = () => {
-    return `${window.location.origin}/member/${projectId}`;
+    // Usando window.location para garantir o URL correto
+    const baseUrl = `${window.location.protocol}//${window.location.host}`;
+    return `${baseUrl}/member/${projectId}`;
   };
 
   const copyLoginUrl = () => {
